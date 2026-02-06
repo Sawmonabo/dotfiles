@@ -1,0 +1,272 @@
+{{ if eq .chezmoi.os "linux" -}}
+{{ if env "WSL_DISTRO_NAME" -}}
+#!/bin/bash
+# Bootstrap script for Windows configs (runs from WSL)
+# Installs oh-my-posh.exe, fonts, Windows Terminal settings, PowerShell profile
+set -euo pipefail
+
+echo "==> WSL → Windows bootstrap starting..."
+
+# Detect Windows username
+WIN_USER=$(cmd.exe /c "echo %USERNAME%" 2>/dev/null | tr -d '\r')
+WIN_HOME="/mnt/c/Users/$WIN_USER"
+WIN_APPDATA="$WIN_HOME/AppData/Local"
+
+echo "    Windows user: $WIN_USER"
+
+# --- oh-my-posh for Windows ---
+OMP_WIN_DIR="$WIN_APPDATA/Programs/oh-my-posh"
+OMP_WIN_BIN="$OMP_WIN_DIR/bin"
+OMP_WIN_THEMES="$OMP_WIN_DIR/themes"
+
+if [ ! -f "$OMP_WIN_BIN/oh-my-posh.exe" ]; then
+    echo "==> Installing oh-my-posh for Windows..."
+    mkdir -p "$OMP_WIN_BIN" "$OMP_WIN_THEMES"
+
+    # Download oh-my-posh.exe
+    OMP_URL=$(curl -fsSL https://api.github.com/repos/JanDeDobbeleer/oh-my-posh/releases/latest \
+        | grep -o '"browser_download_url": *"[^"]*posh-windows-amd64.exe"' \
+        | head -1 \
+        | cut -d'"' -f4)
+    if [ -n "$OMP_URL" ]; then
+        curl -fsSL "$OMP_URL" -o "$OMP_WIN_BIN/oh-my-posh.exe"
+        echo "    oh-my-posh.exe installed."
+    else
+        echo "    WARNING: Could not find oh-my-posh.exe download URL."
+    fi
+
+    # Download themes
+    THEMES_URL="https://github.com/JanDeDobbeleer/oh-my-posh/releases/latest/download/themes.zip"
+    curl -fsSL "$THEMES_URL" -o /tmp/omp-themes-win.zip
+    unzip -o /tmp/omp-themes-win.zip -d "$OMP_WIN_THEMES"
+    rm -f /tmp/omp-themes-win.zip
+    echo "    oh-my-posh themes installed for Windows."
+else
+    echo "==> oh-my-posh for Windows already installed, skipping."
+fi
+
+# --- JetBrains Mono Nerd Font for Windows ---
+WIN_FONT_DIR="$WIN_APPDATA/Microsoft/Windows/Fonts"
+if [ ! -d "$WIN_FONT_DIR" ] || ! ls "$WIN_FONT_DIR"/JetBrainsMono*.ttf &>/dev/null; then
+    echo "==> Installing JetBrains Mono Nerd Font for Windows..."
+    mkdir -p "$WIN_FONT_DIR"
+
+    FONT_URL=$(curl -fsSL https://api.github.com/repos/ryanoasis/nerd-fonts/releases/latest \
+        | grep -o '"browser_download_url": *"[^"]*JetBrainsMono[^"]*\.zip"' \
+        | head -1 \
+        | cut -d'"' -f4)
+    if [ -n "$FONT_URL" ]; then
+        curl -fsSL "$FONT_URL" -o /tmp/jetbrains-mono-nf-win.zip
+        unzip -o /tmp/jetbrains-mono-nf-win.zip -d /tmp/jetbrains-mono-nf-win
+        cp /tmp/jetbrains-mono-nf-win/*.ttf "$WIN_FONT_DIR/" 2>/dev/null || true
+        rm -rf /tmp/jetbrains-mono-nf-win /tmp/jetbrains-mono-nf-win.zip
+
+        # Register fonts in Windows registry
+        echo "    Registering fonts in Windows registry..."
+        for font_file in "$WIN_FONT_DIR"/JetBrainsMono*.ttf; do
+            font_name=$(basename "$font_file")
+            display_name="${font_name%.ttf} (TrueType)"
+            win_path="$WIN_APPDATA\\Microsoft\\Windows\\Fonts\\$font_name"
+            # Use forward slashes for the registry path
+            powershell.exe -NoProfile -Command \
+                "New-ItemProperty -Path 'HKCU:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts' -Name '$display_name' -Value '$win_path' -PropertyType String -Force" \
+                2>/dev/null || true
+        done
+        echo "    JetBrains Mono Nerd Font installed for Windows."
+    else
+        echo "    WARNING: Could not find JetBrains Mono Nerd Font download URL."
+    fi
+else
+    echo "==> JetBrains Mono Nerd Font for Windows already installed, skipping."
+fi
+
+# --- Windows Terminal settings.json ---
+WT_SETTINGS_DIR="$WIN_APPDATA/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState"
+if [ -d "$WIN_APPDATA/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe" ]; then
+    echo "==> Writing Windows Terminal settings..."
+    mkdir -p "$WT_SETTINGS_DIR"
+    cat > "$WT_SETTINGS_DIR/settings.json" << 'WTSETTINGS'
+{
+    "$help": "https://aka.ms/terminal-documentation",
+    "$schema": "https://aka.ms/terminal-profiles-schema",
+    "actions":
+    [
+        {
+            "command":
+            {
+                "action": "switchToTab",
+                "index": 8
+            },
+            "id": "User.switchToTab.ED268D78"
+        },
+        {
+            "command":
+            {
+                "action": "scrollToMark",
+                "direction": "previous"
+            },
+            "id": "User.scrollToMark.D3F0B923"
+        },
+        {
+            "command":
+            {
+                "action": "scrollToMark",
+                "direction": "next"
+            },
+            "id": "User.scrollToMark.2A0DA8E0"
+        }
+    ],
+    "copyFormatting": "none",
+    "copyOnSelect": true,
+    "defaultProfile": "{17bf3de4-5353-5709-bcf9-835bd952a95e}",
+    "firstWindowPreference": "persistedWindowLayout",
+    "initialCols": 120,
+    "initialRows": 40,
+    "keybindings":
+    [
+        { "id": "Terminal.CopyToClipboard", "keys": "ctrl+c" },
+        { "id": "Terminal.PasteFromClipboard", "keys": "ctrl+v" },
+        { "id": "Terminal.OpenNewTab", "keys": "ctrl+shift+t" },
+        { "id": "Terminal.ClosePane", "keys": "ctrl+shift+w" },
+        { "id": "Terminal.DuplicatePaneDown", "keys": "ctrl+shift+d" },
+        { "id": "Terminal.DuplicatePaneRight", "keys": "ctrl+shift+e" },
+        { "id": "Terminal.MoveFocusUp", "keys": "ctrl+shift+k" },
+        { "id": "Terminal.MoveFocusDown", "keys": "ctrl+shift+j" },
+        { "id": "Terminal.MoveFocusLeft", "keys": "ctrl+shift+h" },
+        { "id": "Terminal.MoveFocusRight", "keys": "ctrl+shift+l" },
+        { "id": "Terminal.TogglePaneZoom", "keys": "ctrl+shift+z" },
+        { "id": "Terminal.ToggleFullscreen", "keys": "alt+enter" },
+        { "id": "Terminal.ResizePaneLeft", "keys": "ctrl+shift+left" },
+        { "id": "Terminal.ResizePaneRight", "keys": "ctrl+shift+right" },
+        { "id": "Terminal.ResizePaneUp", "keys": "ctrl+shift+up" },
+        { "id": "Terminal.ResizePaneDown", "keys": "ctrl+shift+down" },
+        { "id": "User.scrollToMark.D3F0B923", "keys": "ctrl+alt+up" },
+        { "id": "User.scrollToMark.2A0DA8E0", "keys": "ctrl+alt+down" },
+        { "id": "Terminal.SwitchToTab0", "keys": "ctrl+alt+1" },
+        { "id": "Terminal.SwitchToTab1", "keys": "ctrl+alt+2" },
+        { "id": "Terminal.SwitchToTab2", "keys": "ctrl+alt+3" },
+        { "id": "Terminal.SwitchToTab3", "keys": "ctrl+alt+4" },
+        { "id": "Terminal.SwitchToTab4", "keys": "ctrl+alt+5" },
+        { "id": "Terminal.SwitchToTab5", "keys": "ctrl+alt+6" },
+        { "id": "Terminal.SwitchToTab6", "keys": "ctrl+alt+7" },
+        { "id": "Terminal.SwitchToTab7", "keys": "ctrl+alt+8" },
+        { "id": "User.switchToTab.ED268D78", "keys": "ctrl+alt+9" }
+    ],
+    "newTabMenu":
+    [
+        { "type": "remainingProfiles" }
+    ],
+    "profiles":
+    {
+        "defaults":
+        {
+            "antialiasingMode": "cleartype",
+            "autoMarkPrompts": true,
+            "colorScheme": "Catppuccin Mocha",
+            "experimental.repositionCursorWithMouse": true,
+            "font":
+            {
+                "face": "JetBrainsMono Nerd Font",
+                "features": { "calt": 1, "liga": 1 },
+                "size": 12,
+                "weight": "medium"
+            },
+            "intenseTextStyle": "bold",
+            "opacity": 100,
+            "padding": "8",
+            "pathTranslationStyle": "wsl",
+            "scrollbarState": "hidden",
+            "showMarksOnScrollbar": true
+        },
+        "list":
+        [
+            {
+                "commandline": "%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+                "guid": "{61c54bbd-c2c6-5271-96e7-009a87ff44bf}",
+                "hidden": false,
+                "name": "Windows PowerShell",
+                "tabColor": "#B4BEFE"
+            },
+            {
+                "commandline": "%SystemRoot%\\System32\\cmd.exe",
+                "guid": "{0caa0dad-35be-5f56-a8ff-afceeeaa6101}",
+                "hidden": false,
+                "name": "Command Prompt",
+                "tabColor": "#6C7086"
+            },
+            {
+                "guid": "{574e775e-4f2a-5b96-ac1e-a2962a402336}",
+                "hidden": false,
+                "name": "PowerShell",
+                "source": "Windows.Terminal.PowershellCore",
+                "tabColor": "#B4BEFE"
+            },
+            {
+                "guid": "{b453ae62-4e3d-5e58-b989-0a998ec441b8}",
+                "hidden": false,
+                "name": "Azure Cloud Shell",
+                "source": "Windows.Terminal.Azure",
+                "tabColor": "#74C7EC"
+            },
+            {
+                "guid": "{17bf3de4-5353-5709-bcf9-835bd952a95e}",
+                "hidden": false,
+                "name": "Ubuntu-22.04",
+                "source": "Windows.Terminal.Wsl",
+                "startingDirectory": "//wsl.localhost/Ubuntu-22.04/home/sabossedgh/repos",
+                "tabColor": "#FAB387"
+            }
+        ]
+    },
+    "schemes":
+    [
+        {
+            "background": "#1E1E2E",
+            "black": "#45475A",
+            "blue": "#89B4FA",
+            "brightBlack": "#585B70",
+            "brightBlue": "#89B4FA",
+            "brightCyan": "#94E2D5",
+            "brightGreen": "#A6E3A1",
+            "brightPurple": "#F5C2E7",
+            "brightRed": "#F38BA8",
+            "brightWhite": "#A6ADC8",
+            "brightYellow": "#F9E2AF",
+            "cursorColor": "#F5E0DC",
+            "cyan": "#94E2D5",
+            "foreground": "#CDD6F4",
+            "green": "#A6E3A1",
+            "name": "Catppuccin Mocha",
+            "purple": "#F5C2E7",
+            "red": "#F38BA8",
+            "selectionBackground": "#585B70",
+            "white": "#BAC2DE",
+            "yellow": "#F9E2AF"
+        }
+    ],
+    "theme": "legacyDark",
+    "themes": []
+}
+WTSETTINGS
+    echo "    Windows Terminal settings written."
+else
+    echo "==> Windows Terminal not found, skipping settings."
+fi
+
+# --- PowerShell profile ---
+PS_PROFILE_DIR="$WIN_HOME/Documents/WindowsPowerShell"
+echo "==> Writing PowerShell profile..."
+mkdir -p "$PS_PROFILE_DIR"
+cat > "$PS_PROFILE_DIR/Microsoft.PowerShell_profile.ps1" << 'PSPROFILE'
+# Start in repos directory
+Set-Location "\\wsl.localhost\Ubuntu-22.04\home\sabossedgh\repos"
+
+# Oh My Posh prompt
+& "$env:LOCALAPPDATA\Programs\oh-my-posh\bin\oh-my-posh.exe" init pwsh --config "$env:LOCALAPPDATA\Programs\oh-my-posh\themes\catppuccin_mocha.omp.json" | Invoke-Expression
+PSPROFILE
+echo "    PowerShell profile written."
+
+echo "==> WSL → Windows bootstrap complete."
+echo "    NOTE: Restart Windows Terminal to see changes."
+{{ end -}}
+{{ end -}}

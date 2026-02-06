@@ -1,0 +1,10 @@
+README.md
+docs/
+
+{{ if ne .chezmoi.os "linux" }}
+.bashrc
+{{ end }}
+
+{{ if ne .chezmoi.os "darwin" }}
+.zshrc
+{{ end }}

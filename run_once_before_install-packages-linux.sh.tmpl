@@ -1,0 +1,73 @@
+{{ if eq .chezmoi.os "linux" -}}
+#!/bin/bash
+# Bootstrap script for Linux/WSL — installs bat, oh-my-posh, JetBrains Mono Nerd Font
+set -euo pipefail
+
+echo "==> Linux/WSL bootstrap starting..."
+
+# --- bat (via cargo) ---
+if ! command -v bat &>/dev/null; then
+    echo "==> Installing bat via cargo..."
+    if ! command -v cargo &>/dev/null; then
+        echo "    Installing rustup first..."
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+        . "$HOME/.cargo/env"
+    fi
+    cargo install bat
+    echo "    bat installed."
+else
+    echo "==> bat already installed, skipping."
+fi
+
+# --- oh-my-posh ---
+if ! command -v oh-my-posh &>/dev/null; then
+    echo "==> Installing oh-my-posh..."
+    curl -s https://ohmyposh.dev/install.sh | bash -s -- -d ~/.local/bin
+    echo "    oh-my-posh installed."
+else
+    echo "==> oh-my-posh already installed, skipping."
+fi
+
+# --- Oh My Posh themes (downloaded to cache) ---
+THEMES_DIR="$HOME/.cache/oh-my-posh/themes"
+if [ ! -d "$THEMES_DIR" ] || [ -z "$(ls -A "$THEMES_DIR" 2>/dev/null)" ]; then
+    echo "==> Downloading oh-my-posh themes..."
+    mkdir -p "$THEMES_DIR"
+    THEMES_URL="https://github.com/JanDeDobbeleer/oh-my-posh/releases/latest/download/themes.zip"
+    curl -fsSL "$THEMES_URL" -o /tmp/omp-themes.zip
+    unzip -o /tmp/omp-themes.zip -d "$THEMES_DIR"
+    rm -f /tmp/omp-themes.zip
+    chmod u+rw "$THEMES_DIR"/*.omp.*
+    echo "    Themes installed to $THEMES_DIR"
+else
+    echo "==> oh-my-posh themes already present, skipping."
+fi
+
+# --- Oh My Posh config directory ---
+OMP_CONFIG_DIR="$HOME/.config/oh-my-posh"
+mkdir -p "$OMP_CONFIG_DIR"
+
+# --- JetBrains Mono Nerd Font ---
+FONT_DIR="$HOME/.local/share/fonts"
+if ! fc-list | grep -qi "JetBrainsMono Nerd Font" 2>/dev/null; then
+    echo "==> Installing JetBrains Mono Nerd Font..."
+    mkdir -p "$FONT_DIR"
+    FONT_URL=$(curl -fsSL https://api.github.com/repos/ryanoasis/nerd-fonts/releases/latest \
+        | grep -o '"browser_download_url": *"[^"]*JetBrainsMono[^"]*\.zip"' \
+        | head -1 \
+        | cut -d'"' -f4)
+    if [ -n "$FONT_URL" ]; then
+        curl -fsSL "$FONT_URL" -o /tmp/jetbrains-mono-nf.zip
+        unzip -o /tmp/jetbrains-mono-nf.zip -d "$FONT_DIR"
+        rm -f /tmp/jetbrains-mono-nf.zip
+        fc-cache -fv
+        echo "    JetBrains Mono Nerd Font installed."
+    else
+        echo "    WARNING: Could not find JetBrains Mono Nerd Font download URL."
+    fi
+else
+    echo "==> JetBrains Mono Nerd Font already installed, skipping."
+fi
+
+echo "==> Linux/WSL bootstrap complete."
+{{ end -}}

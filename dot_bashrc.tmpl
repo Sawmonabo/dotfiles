@@ -1,0 +1,88 @@
+# ~/.bashrc: executed by bash(1) for non-login shells.
+
+# If not running interactively, don't do anything
+case $- in
+    *i*) ;;
+      *) return;;
+esac
+
+# --- History ---
+HISTCONTROL=ignoreboth
+shopt -s histappend
+HISTSIZE=1000
+HISTFILESIZE=2000
+
+# --- Shell options ---
+shopt -s checkwinsize
+#shopt -s globstar
+
+# make less more friendly for non-text input files, see lesspipe(1)
+[ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
+
+# set variable identifying the chroot you work in (used in the prompt below)
+if [ -z "${debian_chroot:-}" ] && [ -r /etc/debian_chroot ]; then
+    debian_chroot=$(cat /etc/debian_chroot)
+fi
+
+# --- Color support ---
+if [ -x /usr/bin/dircolors ]; then
+    test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
+    alias ls='ls -lha --color=auto'
+    alias grep='grep --color=auto'
+    alias fgrep='fgrep --color=auto'
+    alias egrep='egrep --color=auto'
+fi
+
+# --- Aliases ---
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+alias cat='bat --paging=never'
+
+alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
+
+# Source local aliases if they exist (not managed by chezmoi)
+if [ -f ~/.bash_aliases ]; then
+    . ~/.bash_aliases
+fi
+
+# --- Completion ---
+if ! shopt -oq posix; then
+    if [ -f /usr/share/bash-completion/bash_completion ]; then
+        . /usr/share/bash-completion/bash_completion
+    elif [ -f /etc/bash_completion ]; then
+        . /etc/bash_completion
+    fi
+fi
+
+# --- PATH ---
+export PATH="$HOME/.local/bin:$PATH"
+
+# Cargo (Rust)
+[ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
+
+# nvm (Node.js)
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+
+# --- Oh My Posh prompt ---
+eval "$(oh-my-posh init bash --config ~/.config/oh-my-posh/catppuccin_mocha.omp.json)"
+
+# --- Editor ---
+export EDITOR="{{ .editor }} --wait"
+
+# --- Smart IDE launcher ---
+# Detects current IDE and routes `code` accordingly.
+# If running inside Cursor's terminal, `code <path>` opens in Cursor instead of VS Code.
+code() {
+    if [[ -n "$VSCODE_GIT_ASKPASS_NODE" && "$VSCODE_GIT_ASKPASS_NODE" == *".cursor-server"* ]]; then
+        command cursor "$@"
+    else
+        command code "$@"
+    fi
+}

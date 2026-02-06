@@ -1,0 +1,61 @@
+# ~/.zshrc: executed by zsh for interactive shells.
+
+# --- History ---
+HISTSIZE=1000
+SAVEHIST=2000
+HISTFILE=~/.zsh_history
+setopt HIST_IGNORE_DUPS
+setopt HIST_IGNORE_SPACE
+setopt APPEND_HISTORY
+setopt SHARE_HISTORY
+
+# --- Completion ---
+autoload -Uz compinit && compinit
+
+# --- PATH ---
+# Homebrew (Apple Silicon)
+if [ -d "/opt/homebrew/bin" ]; then
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+fi
+# Homebrew (Intel)
+if [ -d "/usr/local/bin/brew" ]; then
+    eval "$(/usr/local/bin/brew shellenv)"
+fi
+
+export PATH="$HOME/.local/bin:$PATH"
+
+# Cargo (Rust)
+[ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
+
+# nvm (Node.js)
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+
+# --- Aliases ---
+alias ls='ls -lhaG'
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+alias cat='bat --paging=never'
+alias grep='grep --color=auto'
+
+# --- Oh My Posh prompt ---
+eval "$(oh-my-posh init zsh --config ~/.config/oh-my-posh/catppuccin_mocha.omp.json)"
+
+# --- Editor ---
+export EDITOR="{{ .editor }} --wait"
+
+# --- Smart IDE launcher ---
+# Detects current IDE and routes `code` accordingly.
+code() {
+    if [[ -n "$VSCODE_GIT_ASKPASS_NODE" && "$VSCODE_GIT_ASKPASS_NODE" == *".cursor-server"* ]]; then
+        command cursor "$@"
+    else
+        command code "$@"
+    fi
+}

@@ -1,0 +1,63 @@
+{{ if eq .chezmoi.os "darwin" -}}
+#!/bin/bash
+# Bootstrap script for macOS — installs Homebrew, bat, oh-my-posh, JetBrains Mono Nerd Font, gh
+set -euo pipefail
+
+echo "==> macOS bootstrap starting..."
+
+# --- Homebrew ---
+if ! command -v brew &>/dev/null; then
+    echo "==> Installing Homebrew..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    # Set up Homebrew in PATH for this script
+    if [ -d "/opt/homebrew/bin" ]; then
+        eval "$(/opt/homebrew/bin/brew shellenv)"
+    else
+        eval "$(/usr/local/bin/brew shellenv)"
+    fi
+    echo "    Homebrew installed."
+else
+    echo "==> Homebrew already installed, skipping."
+fi
+
+# --- bat ---
+if ! command -v bat &>/dev/null; then
+    echo "==> Installing bat..."
+    brew install bat
+    echo "    bat installed."
+else
+    echo "==> bat already installed, skipping."
+fi
+
+# --- oh-my-posh ---
+if ! command -v oh-my-posh &>/dev/null; then
+    echo "==> Installing oh-my-posh..."
+    brew install jandedobbeleer/oh-my-posh/oh-my-posh
+    echo "    oh-my-posh installed."
+else
+    echo "==> oh-my-posh already installed, skipping."
+fi
+
+# --- Oh My Posh config directory ---
+mkdir -p "$HOME/.config/oh-my-posh"
+
+# --- JetBrains Mono Nerd Font ---
+if ! system_profiler SPFontsDataType 2>/dev/null | grep -qi "JetBrainsMono Nerd Font"; then
+    echo "==> Installing JetBrains Mono Nerd Font..."
+    brew install --cask font-jetbrains-mono-nerd-font
+    echo "    JetBrains Mono Nerd Font installed."
+else
+    echo "==> JetBrains Mono Nerd Font already installed, skipping."
+fi
+
+# --- gh (GitHub CLI) ---
+if ! command -v gh &>/dev/null; then
+    echo "==> Installing GitHub CLI..."
+    brew install gh
+    echo "    gh installed."
+else
+    echo "==> gh already installed, skipping."
+fi
+
+echo "==> macOS bootstrap complete."
+{{ end -}}
