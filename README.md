@@ -8,6 +8,7 @@ Cross-platform dotfiles managed with [chezmoi](https://www.chezmoi.io/). Support
 - [What's Managed](#whats-managed)
 - [What Gets Installed](#what-gets-installed)
 - [Daily Usage](#daily-usage)
+- [How Syncing Works](#how-syncing-works)
 - [Customization](#customization)
 - [Repo Structure](#repo-structure)
 - [Platform Docs](#platform-docs)
@@ -118,6 +119,23 @@ chezmoi verify             # exit code 0 = no drift
 ```bash
 chezmoi init
 ```
+
+## How Syncing Works
+
+Chezmoi does **not** auto-sync. Every step is manual and deliberate:
+
+```text
+1. Edit config       chezmoi edit ~/.bashrc
+2. Deploy locally    chezmoi apply
+3. Commit & push     cd ~/dev/dotfiles && git add -A && git commit -m "..." && git push
+4. Pull elsewhere    chezmoi update -v   (on your other machine)
+```
+
+- **Changes to live files are not tracked.** If you edit `~/.bashrc` directly, chezmoi doesn't know. Use `chezmoi edit` or `chezmoi add` to update the source.
+- **Nothing is committed or pushed automatically.** You decide when to snapshot and share.
+- **Other machines don't auto-update.** Run `chezmoi update -v` to pull and apply.
+
+This keeps you in control — no half-finished changes get pushed, and no unexpected overwrites happen on other machines.
 
 ## Customization
 
