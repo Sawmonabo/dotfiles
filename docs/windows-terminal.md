@@ -1,5 +1,15 @@
 # Windows Terminal Configuration
 
+## Table of Contents
+
+- [Color Scheme: Catppuccin Mocha](#color-scheme-catppuccin-mocha)
+- [Keybindings](#keybindings)
+- [Profile Tab Colors](#profile-tab-colors)
+- [Default Profile Settings](#default-profile-settings)
+- [Experimental Features](#experimental-features)
+- [Customizing](#customizing)
+- [PowerShell Profile](#powershell-profile)
+
 ## Color Scheme: Catppuccin Mocha
 
 | Color | Hex |
@@ -22,18 +32,21 @@ Bright variants use the same hues. See the [Catppuccin palette](https://github.c
 ## Keybindings
 
 ### Clipboard
+
 | Action | Shortcut |
 |--------|----------|
 | Copy | `Ctrl+C` |
 | Paste | `Ctrl+V` |
 
 ### Tabs
+
 | Action | Shortcut |
 |--------|----------|
 | New tab | `Ctrl+Shift+T` |
 | Switch to tab 1-9 | `Ctrl+Alt+1` through `Ctrl+Alt+9` |
 
 ### Panes
+
 | Action | Shortcut |
 |--------|----------|
 | Split down | `Ctrl+Shift+D` |
@@ -50,6 +63,7 @@ Bright variants use the same hues. See the [Catppuccin palette](https://github.c
 | Resize down | `Ctrl+Shift+Down` |
 
 ### Navigation
+
 | Action | Shortcut |
 |--------|----------|
 | Scroll to previous mark | `Ctrl+Alt+Up` |
@@ -90,9 +104,27 @@ All colors are from the Catppuccin Mocha palette.
 - **`autoMarkPrompts`**: Automatically mark prompt boundaries for Ctrl+Alt+Up/Down navigation
 - **`showMarksOnScrollbar`**: Visual indicators on the scrollbar for marked positions
 
-## Adding a New Profile
+## Customizing
 
-Add to the `profiles.list` array in `settings.json`:
+### Modifying settings
+
+The Windows Terminal `settings.json` is embedded in the WSL bootstrap script. To change it:
+
+1. Open the chezmoi source directory: `chezmoi cd`
+1. Edit `run_once_before_install-packages-windows.sh.tmpl` — find the `WTSETTINGS` heredoc
+1. Force re-run and apply:
+
+```bash
+chezmoi state delete-bucket --bucket=scriptState
+chezmoi apply
+```
+
+1. Restart Windows Terminal
+
+### Adding a new profile
+
+Add to the `profiles.list` array inside the `WTSETTINGS` heredoc:
+
 ```json
 {
     "guid": "{generate-a-new-guid}",
@@ -105,6 +137,16 @@ Add to the `profiles.list` array in `settings.json`:
 
 Generate a GUID in PowerShell: `[guid]::NewGuid().ToString()`
 
+### Adding a keybinding
+
+Add to the `keybindings` array:
+
+```json
+{ "id": "Terminal.SomeAction", "keys": "ctrl+shift+x" }
+```
+
+For custom actions, also add an entry to the `actions` array.
+
 ## PowerShell Profile
 
 The PowerShell profile at `Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1` runs Oh My Posh with the same Catppuccin Mocha theme:
@@ -112,3 +154,5 @@ The PowerShell profile at `Documents\WindowsPowerShell\Microsoft.PowerShell_prof
 ```powershell
 & "$env:LOCALAPPDATA\Programs\oh-my-posh\bin\oh-my-posh.exe" init pwsh --config "$env:LOCALAPPDATA\Programs\oh-my-posh\themes\catppuccin_mocha.omp.json" | Invoke-Expression
 ```
+
+To modify the PowerShell profile, edit the `PSPROFILE` heredoc in `run_once_before_install-packages-windows.sh.tmpl`.

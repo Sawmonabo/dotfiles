@@ -7,3 +7,8 @@
     defaultBranch = main
 [pull]
     rebase = false
+
+# Directory-based identity overrides
+# Repos under ~/dev/ use personal email
+[includeIf "gitdir:~/dev/"]
+    path = ~/.gitconfig-personal
