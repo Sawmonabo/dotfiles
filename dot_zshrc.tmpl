@@ -39,6 +39,12 @@ export NVM_DIR="$HOME/.nvm"
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
 
+# PostgreSQL
+export PATH="/opt/homebrew/opt/postgresql@15/bin:$PATH"
+
+# --- Docker CLI completions ---
+fpath=(/Users/sawmonabo/.docker/completions $fpath)
+
 # --- Aliases ---
 alias ls='ls -lhaG'
 alias ll='ls -alF'
