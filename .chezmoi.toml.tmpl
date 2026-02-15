@@ -2,6 +2,6 @@ sourceDir = "{{ .chezmoi.homeDir }}/dev/dotfiles"
 
 [data]
     name = "{{ promptStringOnce . "name" "Git user name" }}"
-    email = "{{ promptStringOnce . "email" "Git work email (default for all repos)" }}"
-    personal_email = "{{ promptStringOnce . "personal_email" "Git personal email (for ~/dev/ repos)" }}"
+    email = "{{ promptStringOnce . "email" "Git personal email (default for all repos)" }}"
+    work_email = "{{ promptStringOnce . "work_email" "Git work email (for ~/work/ repos)" }}"
     editor = "{{ promptStringOnce . "editor" "Preferred editor (cursor/code/vim)" }}"

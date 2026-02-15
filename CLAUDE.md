@@ -13,8 +13,8 @@ chezmoi templates in this repo deploy to `~/` on each platform. The naming conve
 | `.chezmoi.toml.tmpl` | `~/.config/chezmoi/chezmoi.toml` | Interactive prompts for name, emails, editor |
 | `dot_bashrc.tmpl` | `~/.bashrc` | Linux/WSL only (ignored on macOS) |
 | `dot_zshrc.tmpl` | `~/.zshrc` | macOS only (ignored on Linux) |
-| `dot_gitconfig.tmpl` | `~/.gitconfig` | All platforms; uses `includeIf` for personal email |
-| `dot_gitconfig-personal.tmpl` | `~/.gitconfig-personal` | Personal email for `~/dev/` repos |
+| `dot_gitconfig.tmpl` | `~/.gitconfig` | All platforms; uses `includeIf` for work email |
+| `dot_gitconfig-work.tmpl` | `~/.gitconfig-work` | Work email for `~/work/` repos |
 | `dot_config/oh-my-posh/` | `~/.config/oh-my-posh/` | Catppuccin Mocha theme (all platforms) |
 | `run_once_before_install-packages-*.sh.tmpl` | (run scripts) | Platform bootstrap: installs bat, oh-my-posh, Nerd Font, gh |
 
@@ -22,8 +22,8 @@ chezmoi templates in this repo deploy to `~/` on each platform. The naming conve
 
 Defined in `.chezmoi.toml.tmpl` via `promptStringOnce`:
 - `.name` — Git user name
-- `.email` — Work email (global default)
-- `.personal_email` — Personal email (for `~/dev/` repos)
+- `.email` — Personal email (global default)
+- `.work_email` — Work email (for `~/work/` repos)
 - `.editor` — Preferred editor (`cursor`/`code`/`vim`)
 
 ### Platform gating

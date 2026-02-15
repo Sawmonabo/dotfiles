@@ -50,7 +50,7 @@ chezmoi apply -v
 | `.bashrc` | | x | x | |
 | `.zshrc` | x | | | |
 | `.gitconfig` | x | x | x | |
-| `.gitconfig-personal` | x | x | x | |
+| `.gitconfig-work` | x | x | x | |
 | Oh My Posh theme | x | x | x | x |
 | Windows Terminal settings | | | | x |
 | PowerShell profile | | | | x |
@@ -141,12 +141,12 @@ This keeps you in control — no half-finished changes get pushed, and no unexpe
 
 ### Git identity per directory
 
-`.gitconfig` uses your work email as the default. Repos under `~/dev/` automatically switch to your personal email via Git's `includeIf` and `.gitconfig-personal`.
+`.gitconfig` uses your personal email as the default. Repos under `~/work/` automatically switch to your work email via Git's `includeIf` and `.gitconfig-work`.
 
 To change either email, re-run `chezmoi init` or edit the source:
 
 ```bash
-chezmoi edit ~/.gitconfig-personal
+chezmoi edit ~/.gitconfig-work
 chezmoi apply
 ```
 
@@ -170,7 +170,7 @@ chezmoi apply
 ├── dot_bashrc.tmpl                                     # → ~/.bashrc (Linux/WSL)
 ├── dot_zshrc.tmpl                                      # → ~/.zshrc (macOS)
 ├── dot_gitconfig.tmpl                                  # → ~/.gitconfig (all)
-├── dot_gitconfig-personal.tmpl                         # → ~/.gitconfig-personal (all)
+├── dot_gitconfig-work.tmpl                             # → ~/.gitconfig-work (all)
 ├── dot_config/oh-my-posh/catppuccin_mocha.omp.json     # → ~/.config/oh-my-posh/
 ├── run_once_before_install-packages-linux.sh.tmpl       # Linux/WSL bootstrap
 ├── run_once_before_install-packages-darwin.sh.tmpl      # macOS bootstrap
