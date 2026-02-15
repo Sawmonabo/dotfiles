@@ -1,0 +1,43 @@
+#!/bin/bash
+# Configure Cursor terminal to use JetBrains Mono Nerd Font
+# This script runs when its content changes
+
+set -euo pipefail
+
+{{- if eq .chezmoi.os "darwin" }}
+
+CURSOR_SETTINGS="$HOME/Library/Application Support/Cursor/User/settings.json"
+
+# Check if Cursor settings exist
+if [ ! -f "$CURSOR_SETTINGS" ]; then
+    echo "Cursor settings not found, skipping..."
+    exit 0
+fi
+
+# Check if terminal font is already set
+if grep -q '"terminal.integrated.fontFamily"' "$CURSOR_SETTINGS"; then
+    echo "✓ Cursor terminal font already configured"
+    exit 0
+fi
+
+echo "==> Configuring Cursor terminal font..."
+
+# Use jq to add the terminal font setting if it doesn't exist
+if command -v jq &>/dev/null; then
+    # Backup original settings
+    cp "$CURSOR_SETTINGS" "$CURSOR_SETTINGS.backup"
+
+    # Add terminal font family setting
+    jq '. + {"terminal.integrated.fontFamily": "JetBrainsMono Nerd Font"}' \
+        "$CURSOR_SETTINGS.backup" > "$CURSOR_SETTINGS"
+
+    echo "    ✓ Cursor terminal font configured"
+    rm "$CURSOR_SETTINGS.backup"
+else
+    echo "    ⚠ jq not found, please install: brew install jq"
+    exit 1
+fi
+
+{{- else }}
+echo "Skipping Cursor configuration (macOS only)"
+{{- end }}

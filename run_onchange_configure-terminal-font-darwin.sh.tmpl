@@ -1,0 +1,58 @@
+#!/bin/bash
+# Configure macOS Terminal.app to use JetBrains Mono Nerd Font
+# This script runs when its content changes
+
+set -euo pipefail
+
+{{- if eq .chezmoi.os "darwin" }}
+
+echo "==> Configuring Terminal.app font..."
+
+# Create a custom Terminal profile with Nerd Font
+PROFILE_NAME="Basic"
+FONT_NAME="JetBrainsMonoNerdFont-Regular"
+FONT_SIZE="12"
+
+# Check if the font is installed
+if ! system_profiler SPFontsDataType 2>/dev/null | grep -qi "JetBrainsMono Nerd Font"; then
+    echo "    ⚠ JetBrains Mono Nerd Font not found"
+    echo "    Please install it first: brew install --cask font-jetbrains-mono-nerd-font"
+    exit 0
+fi
+
+# Use PlistBuddy to set the font for the Basic profile
+PLIST="$HOME/Library/Preferences/com.apple.Terminal.plist"
+
+# Create a backup
+cp "$PLIST" "$PLIST.backup" 2>/dev/null || true
+
+# Note: Modifying Terminal font via plist is complex due to NSArchiver encoding
+# Instead, we'll create a helper script for manual setup
+cat > "$HOME/.terminal-font-setup.sh" << 'EOF'
+#!/bin/bash
+# Run this script and then:
+# 1. Open Terminal.app
+# 2. Go to Settings (Cmd+,) > Profiles > Basic
+# 3. Click the Font button
+# 4. Select: JetBrainsMono Nerd Font Regular, size 12
+# 5. Close the preferences window
+
+echo "To complete Terminal.app font setup:"
+echo "1. Open Terminal.app"
+echo "2. Press Cmd+, (Settings)"
+echo "3. Go to Profiles tab → Basic"
+echo "4. Click 'Font' button (under Text section)"
+echo "5. Search for and select: JetBrainsMono Nerd Font Regular"
+echo "6. Set size to 12-14"
+echo "7. Close preferences"
+EOF
+
+chmod +x "$HOME/.terminal-font-setup.sh"
+
+echo "    ⚠ Terminal.app font must be set manually"
+echo "    Run: ~/.terminal-font-setup.sh for instructions"
+echo "    (Or open Terminal → Settings → Profiles → Basic → Font)"
+
+{{- else }}
+echo "Skipping Terminal.app configuration (macOS only)"
+{{- end }}

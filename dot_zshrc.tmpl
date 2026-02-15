@@ -39,6 +39,11 @@ export NVM_DIR="$HOME/.nvm"
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
 
+# uv (Python package and project manager)
+if command -v uv &> /dev/null; then
+    eval "$(uv generate-shell-completion zsh)"
+fi
+
 # PostgreSQL
 export PATH="/opt/homebrew/opt/postgresql@15/bin:$PATH"
 

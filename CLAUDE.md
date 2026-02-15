@@ -12,11 +12,13 @@ chezmoi templates in this repo deploy to `~/` on each platform. The naming conve
 |---|---|---|
 | `.chezmoi.toml.tmpl` | `~/.config/chezmoi/chezmoi.toml` | Interactive prompts for name, emails, editor |
 | `dot_bashrc.tmpl` | `~/.bashrc` | Linux/WSL only (ignored on macOS) |
-| `dot_zshrc.tmpl` | `~/.zshrc` | macOS only (ignored on Linux) |
+| `dot_zshrc.tmpl` | `~/.zshrc` | macOS only (ignored on Linux); includes uv shell completions |
 | `dot_gitconfig.tmpl` | `~/.gitconfig` | All platforms; uses `includeIf` for work email |
 | `dot_gitconfig-work.tmpl` | `~/.gitconfig-work` | Work email for `~/work/` repos |
 | `dot_config/oh-my-posh/` | `~/.config/oh-my-posh/` | Catppuccin Mocha theme (all platforms) |
 | `run_once_before_install-packages-*.sh.tmpl` | (run scripts) | Platform bootstrap: installs bat, oh-my-posh, Nerd Font, gh |
+| `run_onchange_configure-cursor-terminal-font.sh.tmpl` | (run script) | Configures Cursor terminal to use Nerd Font (macOS only) |
+| `run_onchange_configure-terminal-font-darwin.sh.tmpl` | (run script) | Provides instructions for Terminal.app font setup (macOS only) |
 
 ### Template variables
 
