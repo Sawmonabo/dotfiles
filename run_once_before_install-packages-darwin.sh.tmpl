@@ -50,6 +50,24 @@ else
     echo "==> JetBrains Mono Nerd Font already installed, skipping."
 fi
 
+# --- tmux ---
+if ! command -v tmux &>/dev/null; then
+    echo "==> Installing tmux..."
+    brew install tmux
+    echo "    tmux installed."
+else
+    echo "==> tmux already installed, skipping."
+fi
+
+# --- TPM (Tmux Plugin Manager) ---
+if [ ! -d "$HOME/.tmux/plugins/tpm" ]; then
+    echo "==> Installing TPM (Tmux Plugin Manager)..."
+    git clone https://github.com/tmux-plugins/tpm "$HOME/.tmux/plugins/tpm"
+    echo "    TPM installed."
+else
+    echo "==> TPM already installed, skipping."
+fi
+
 # --- gh (GitHub CLI) ---
 if ! command -v gh &>/dev/null; then
     echo "==> Installing GitHub CLI..."

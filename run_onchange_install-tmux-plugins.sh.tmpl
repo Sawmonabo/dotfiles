@@ -1,0 +1,12 @@
+#!/bin/bash
+# Install tmux plugins via TPM whenever tmux.conf changes
+# hash: {{ include "dot_config/tmux/tmux.conf" | sha256sum }}
+set -euo pipefail
+
+if [ -x "$HOME/.tmux/plugins/tpm/bin/install_plugins" ]; then
+    echo "==> Installing tmux plugins..."
+    "$HOME/.tmux/plugins/tpm/bin/install_plugins"
+    echo "    tmux plugins installed."
+else
+    echo "==> TPM not found, skipping plugin install."
+fi
