@@ -10,13 +10,14 @@ chezmoi templates in this repo deploy to `~/` on each platform. The naming conve
 
 | Source file | Deploys to | Notes |
 |---|---|---|
-| `.chezmoi.toml.tmpl` | `~/.config/chezmoi/chezmoi.toml` | Interactive prompts for name, emails, editor |
+| `.chezmoi.toml.tmpl` | `~/.config/chezmoi/chezmoi.toml` | Interactive prompts for name, emails, editor; WSL memory/paths on WSL |
 | `dot_bashrc.tmpl` | `~/.bashrc` | Linux/WSL only (ignored on macOS) |
 | `dot_zshrc.tmpl` | `~/.zshrc` | macOS only (ignored on Linux); includes uv shell completions |
 | `dot_gitconfig.tmpl` | `~/.gitconfig` | All platforms; uses `includeIf` for work email |
 | `dot_gitconfig-work.tmpl` | `~/.gitconfig-work` | Work email for `~/work/` repos |
 | `dot_config/oh-my-posh/` | `~/.config/oh-my-posh/` | Catppuccin Mocha theme (all platforms) |
 | `run_once_before_install-packages-*.sh.tmpl` | (run scripts) | Platform bootstrap: installs bat, oh-my-posh, Nerd Font, gh |
+| `run_onchange_deploy-wsl-windows-configs.sh.tmpl` | (run script) | WSL only; merges `.wslconfig` and deploys RestartWSL scripts to Windows |
 | `run_onchange_configure-cursor-terminal-font.sh.tmpl` | (run script) | Configures Cursor terminal to use Nerd Font (macOS only) |
 | `run_onchange_configure-terminal-font-darwin.sh.tmpl` | (run script) | Provides instructions for Terminal.app font setup (macOS only) |
 
@@ -27,6 +28,8 @@ Defined in `.chezmoi.toml.tmpl` via `promptStringOnce`:
 - `.email` — Personal email (global default)
 - `.work_email` — Work email (for `~/work/` repos)
 - `.editor` — Preferred editor (`cursor`/`code`/`vim`)
+- `.wsl_memory` — WSL memory limit, e.g. `8GB` (WSL only)
+- `.restart_wsl_path` — RestartWSL scripts location, relative to Windows home or full path (WSL only)
 
 ### Platform gating
 

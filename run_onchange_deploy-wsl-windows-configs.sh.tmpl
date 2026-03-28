@@ -1,0 +1,241 @@
+{{ if eq .chezmoi.os "linux" -}}
+{{ if (.chezmoi.kernel.osrelease | lower | contains "microsoft") -}}
+#!/bin/bash
+# Deploy .wslconfig and RestartWSL scripts to the Windows filesystem
+# Re-runs whenever this template's content changes
+#
+# Merge behavior for .wslconfig:
+#   - New install: writes fresh file
+#   - Existing file, already correct: skips
+#   - Existing file, differs: shows diff, prompts y/n (backs up to .wslconfig.chezmoi.bak)
+#   - CHEZMOI_FORCE=1: merges without prompting
+set -euo pipefail
+
+WSL_MEMORY="{{ .wsl_memory }}"
+RESTART_WSL_PATH="{{ .restart_wsl_path }}"
+
+echo "==> Deploying WSL Windows configs..."
+
+WIN_USER=$(cmd.exe /c "echo %USERNAME%" 2>/dev/null | tr -d '\r')
+WIN_HOME="/mnt/c/Users/$WIN_USER"
+echo "    Windows user: $WIN_USER"
+
+# ---------- Helpers ----------
+
+# Resolve a path: absolute Unix, Windows absolute (via wslpath), or relative to Windows home
+resolve_path() {
+    local path="$1" win_home="$2"
+    if [[ "$path" == /* ]]; then
+        echo "$path"
+    elif [[ "$path" =~ ^[A-Za-z]:[/\\] ]]; then
+        local converted
+        if converted=$(wslpath -u "$path" 2>/dev/null); then
+            echo "$converted"
+        else
+            # wslpath failed (unmounted drive, etc.) — convert manually
+            local drive="${path:0:1}" rest="${path:2}"
+            echo "/mnt/${drive,,}${rest//\\//}"
+        fi
+    else
+        echo "$win_home/$path"
+    fi
+}
+
+# Merge a key=value into a specific INI section, preserving all other content
+# Usage: merge_ini_key <file> <section> <key> <value>
+merge_ini_key() {
+    local file="$1" section="$2" key="$3" value="$4"
+
+    if ! grep -q "^\[${section}\]" "$file" 2>/dev/null; then
+        printf '\n[%s]\n%s=%s\n' "$section" "$key" "$value" >> "$file"
+        return
+    fi
+
+    awk -v section="[$section]" -v key="$key" -v value="$value" '
+        BEGIN { found = 0; in_section = 0; inserted = 0 }
+        /^\[/ {
+            if (in_section && !found && !inserted) {
+                print key "=" value
+                inserted = 1
+            }
+            in_section = ($0 == section)
+        }
+        in_section && $0 ~ "^" key "[[:space:]]*=" {
+            print key "=" value
+            found = 1
+            next
+        }
+        { print }
+        END {
+            if (in_section && !found && !inserted) {
+                print key "=" value
+            }
+        }
+    ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
+}
+
+# ---------- .wslconfig ----------
+WSLCONFIG="$WIN_HOME/.wslconfig"
+
+MANAGED_KEYS=(
+    "wsl2|memory|$WSL_MEMORY"
+    "wsl2|swap|2GB"
+    "wsl2|processors|6"
+    "wsl2|pageReporting|true"
+    "wsl2|autoMemoryReclaim|gradual"
+    "experimental|sparseVhd|true"
+)
+
+if [[ ! -f "$WSLCONFIG" ]]; then
+    echo "==> Creating new .wslconfig..."
+    cat > "$WSLCONFIG" << EOF
+[wsl2]
+memory=$WSL_MEMORY
+swap=2GB
+processors=6
+pageReporting=true
+autoMemoryReclaim=gradual
+
+[experimental]
+sparseVhd=true
+EOF
+    echo "    Created $WSLCONFIG"
+else
+    echo "==> Checking existing .wslconfig..."
+
+    TMPMERGED=$(mktemp)
+    TMPORIGINAL=$(mktemp)
+    trap 'rm -f "$TMPMERGED" "$TMPORIGINAL"' EXIT
+
+    # Normalize CRLF for consistent processing
+    sed 's/\r$//' "$WSLCONFIG" > "$TMPORIGINAL"
+    cp "$TMPORIGINAL" "$TMPMERGED"
+
+    for entry in "${MANAGED_KEYS[@]}"; do
+        IFS='|' read -r section key value <<< "$entry"
+        merge_ini_key "$TMPMERGED" "$section" "$key" "$value"
+    done
+
+    if diff -q "$TMPORIGINAL" "$TMPMERGED" > /dev/null 2>&1; then
+        echo "    Already up to date."
+    else
+        echo "    Proposed changes:"
+        diff -u --label "current" --label "proposed" \
+            "$TMPORIGINAL" "$TMPMERGED" | sed 's/^/    /' || true
+
+        APPLY=false
+        if [[ "${CHEZMOI_FORCE:-}" == "1" ]]; then
+            echo "    CHEZMOI_FORCE=1 — applying."
+            APPLY=true
+        elif [[ -t 0 ]]; then
+            read -rp "    Merge changes into .wslconfig? [y/N] " response
+            [[ "$response" =~ ^[Yy]$ ]] && APPLY=true
+        else
+            echo "    Non-interactive — skipping. Use CHEZMOI_FORCE=1 to apply."
+        fi
+
+        if [[ "$APPLY" == true ]]; then
+            cp "$WSLCONFIG" "${WSLCONFIG}.chezmoi.bak"
+            echo "    Backed up to .wslconfig.chezmoi.bak"
+            cp "$TMPMERGED" "$WSLCONFIG"
+            echo "    Merged."
+        else
+            echo "    Skipped."
+        fi
+    fi
+fi
+
+# ---------- RestartWSL scripts ----------
+RESTART_DIR=$(resolve_path "$RESTART_WSL_PATH" "$WIN_HOME")
+
+if [[ -z "$RESTART_DIR" ]]; then
+    echo "==> ERROR: restart_wsl_path resolved to empty. Skipping RestartWSL scripts."
+else
+    echo "==> Writing RestartWSL scripts to $RESTART_DIR..."
+    mkdir -p "$RESTART_DIR"
+
+    cat > "$RESTART_DIR/restart-wsl.ps1" << 'PS1SCRIPT'
+# Restart WSL via the pre-configured elevated scheduled task
+# No admin permissions required - the task itself runs elevated
+#
+# WARNING: Restarting VMCompute while WSL is running can cause a BSOD.
+# This script checks for running distros and aborts if any are found.
+
+# Check if any WSL distros are currently running
+$wslList = wsl -l -v 2>&1
+$running = $wslList | Select-String "Running"
+
+if ($running) {
+    Write-Host "ERROR: WSL distros are currently running:" -ForegroundColor Red
+    Write-Host ""
+    $wslList | ForEach-Object { Write-Host "  $_" }
+    Write-Host ""
+
+    $response = Read-Host "Shut down WSL first, then restart VMCompute? (y/N)"
+    if ($response -ne 'y') {
+        Write-Host "Aborted." -ForegroundColor Yellow
+        exit 1
+    }
+
+    Write-Host "Shutting down WSL..."
+    wsl --shutdown
+
+    # Verify it actually stopped
+    Start-Sleep -Seconds 3
+    $wslCheck = wsl -l -v 2>&1
+    $stillRunning = $wslCheck | Select-String "Running"
+    if ($stillRunning) {
+        Write-Host "ERROR: WSL is still running after shutdown. Aborting to avoid BSOD." -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "WSL stopped." -ForegroundColor Green
+}
+
+Write-Host "Restarting VMCompute service via scheduled task..."
+schtasks /run /tn "RestartVMCompute"
+
+Write-Host "Waiting for VMCompute to restart..."
+Start-Sleep -Seconds 5
+
+Write-Host "Done. WSL will start fresh on next use."
+PS1SCRIPT
+
+    cat > "$RESTART_DIR/Restart WSL.bat" << 'BATSCRIPT'
+@echo off
+powershell -ExecutionPolicy Bypass -File "%~dp0restart-wsl.ps1"
+pause
+BATSCRIPT
+
+    cat > "$RESTART_DIR/setup-task.ps1" << 'SETUPSCRIPT'
+# One-time setup: creates the "RestartVMCompute" scheduled task
+# MUST be run as Administrator (right-click > Run as Administrator)
+
+#Requires -RunAsAdministrator
+
+$taskName = "RestartVMCompute"
+
+# Check if task already exists
+$existing = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+if ($existing) {
+    Write-Host "Task '$taskName' already exists. Removing and recreating..." -ForegroundColor Yellow
+    Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
+}
+
+$action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-Command Restart-Service vmcompute -Force"
+$principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+
+Register-ScheduledTask -TaskName $taskName -Action $action -Principal $principal -Settings $settings -Description "Restarts the VMCompute (Hyper-V) service for WSL recovery"
+
+Write-Host ""
+Write-Host "Scheduled task '$taskName' created successfully." -ForegroundColor Green
+Write-Host "You can now use 'Restart WSL.bat' without admin rights." -ForegroundColor Green
+SETUPSCRIPT
+
+    echo "    RestartWSL scripts written."
+    echo "    NOTE: Run setup-task.ps1 as Administrator once to create the scheduled task."
+fi
+
+echo "==> Done."
+{{ end -}}
+{{ end -}}
