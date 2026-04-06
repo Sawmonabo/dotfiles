@@ -79,7 +79,7 @@ WSLCONFIG="$WIN_HOME/.wslconfig"
 
 MANAGED_KEYS=(
     "wsl2|memory|$WSL_MEMORY"
-    "wsl2|swap|2GB"
+    "wsl2|swap|4GB"
     "wsl2|processors|6"
     "wsl2|pageReporting|true"
     "wsl2|autoMemoryReclaim|gradual"
@@ -91,7 +91,7 @@ if [[ ! -f "$WSLCONFIG" ]]; then
     cat > "$WSLCONFIG" << EOF
 [wsl2]
 memory=$WSL_MEMORY
-swap=2GB
+swap=4GB
 processors=6
 pageReporting=true
 autoMemoryReclaim=gradual
