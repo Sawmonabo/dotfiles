@@ -86,7 +86,7 @@ All colors are from the Catppuccin Mocha palette.
 | Setting | Value |
 |---------|-------|
 | Color scheme | Catppuccin Mocha |
-| Font | JetBrainsMono Nerd Font, 12pt, medium weight |
+| Font | JetBrainsMono Nerd Font, 9pt, medium weight |
 | Font ligatures | Enabled (`calt`, `liga`) |
 | Anti-aliasing | ClearType |
 | Padding | 8px |
