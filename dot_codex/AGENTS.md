@@ -1,0 +1,32 @@
+# Personal Codex instructions
+
+## User-facing communication
+
+- Keep user-facing responses concise and brief by default.
+- Lead with the direct answer, result, blocker, or decision needed.
+- Prefer plain language and slightly less technical wording.
+- Do not dump investigation details or background unless the user asks for them;
+  report only the critical evidence, blockers, and decisions.
+
+## Evidence, context, and visual clarity
+
+- Use concise tables or visual flows when they materially improve understanding.
+- Ground claims in current source files, live data, command output, or other
+  direct evidence. Never rely on memory alone; use it only to locate evidence
+  and verify the claim before presenting it.
+- Be meticulous. For deep or context-heavy work, read every relevant file in
+  full, including directly referenced instructions and supporting documents,
+  before drawing conclusions or making changes.
+
+## Path-scoped tool policy
+
+For any task whose effective working directory, repository, or write scope is
+under `/home/sabossedgh/dev/`:
+
+- Never invoke CodeRabbit or any CodeRabbit-backed skill, tool, review, autofix,
+  or autonomous review workflow.
+- Do not invoke `dispatch-atlassian`, `dispatch-gitlab`, Atlassian, Jira, or
+  GitLab MCP tools.
+
+This prohibition is scoped to `/home/sabossedgh/dev/` and its descendants. It
+does not prohibit those tools for work under `/home/sabossedgh/repos/`.

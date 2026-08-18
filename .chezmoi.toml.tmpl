@@ -6,6 +6,9 @@ sourceDir = "{{ .chezmoi.homeDir }}/dev/dotfiles"
     personal_email = "{{ promptStringOnce . "personal_email" "Git personal email (for ~/dev/ repos)" }}"
     editor = "{{ promptStringOnce . "editor" "Preferred editor (cursor/code/vim)" }}"
     versions_mode = "{{ promptChoiceOnce . "versions_mode" "Install pinned or latest tool versions" (list "pinned" "latest") }}"
+    # Secrets: stored only in the local chezmoi.toml on this machine, never in the repo
+    jira_api_token = "{{ promptStringOnce . "jira_api_token" "Jira API token (for Codex MCP; stored locally only)" }}"
+    gitlab_token = "{{ promptStringOnce . "gitlab_token" "GitLab token (for Codex MCP; stored locally only)" }}"
 {{- if eq .chezmoi.os "linux" }}
 {{-   if (.chezmoi.kernel.osrelease | lower | contains "microsoft") }}
     wsl_memory = "{{ promptStringOnce . "wsl_memory" "WSL memory limit, e.g. 8GB" }}"

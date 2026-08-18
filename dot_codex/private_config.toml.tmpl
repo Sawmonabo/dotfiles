@@ -1,0 +1,194 @@
+# :schema https://developers.openai.com/codex/config-schema.json
+
+model = "gpt-5.6-sol"
+model_reasoning_effort = "xhigh"
+sandbox_mode = "workspace-write"
+approval_policy = "on-failure"
+web_search = "live"
+project_doc_max_bytes = 65536
+service_tier = "default"
+personality = "pragmatic"
+approvals_reviewer = "user"
+plan_mode_reasoning_effort = "max"
+project_root_markers = [".sidekick-codex-root"]
+
+[features]
+shell_tool = true
+prevent_idle_sleep = true
+terminal_resize_reflow = true
+memories = true
+
+[projects."/home/sabossedgh"]
+trust_level = "trusted"
+
+[projects."/home/sabossedgh/dev/sidekick-council"]
+trust_level = "trusted"
+
+[projects."/home/sabossedgh/repos/ai-foundations"]
+trust_level = "trusted"
+
+[projects."/home/sabossedgh/dev/corpus"]
+trust_level = "trusted"
+
+[projects."/home/sabossedgh/repos/m32rimm"]
+trust_level = "trusted"
+
+[projects."/home/sabossedgh/dev/sidekick-tools"]
+trust_level = "trusted"
+
+[projects."/home/sabossedgh/dev/paseo"]
+trust_level = "trusted"
+
+[projects."/home/sabossedgh/dev/forge"]
+trust_level = "trusted"
+
+[projects."/home/sabossedgh/dev/ai-sidekicks"]
+trust_level = "trusted"
+
+[projects."/home/sabossedgh/dev/sidekick-skills"]
+trust_level = "trusted"
+
+[projects."/home/sabossedgh/dev/external/Decepticon"]
+trust_level = "trusted"
+
+[projects."/home/sabossedgh/dev/redglass"]
+trust_level = "trusted"
+
+[projects."/home/sabossedgh/dev/agent-brain"]
+trust_level = "trusted"
+
+[projects."/home/sabossedgh/repos/fortress-oracle"]
+trust_level = "trusted"
+
+[projects."/home/sabossedgh/repos"]
+trust_level = "trusted"
+
+[projects."/home/sabossedgh/dev"]
+trust_level = "trusted"
+
+[projects."/home/sabossedgh/repos/redglass"]
+trust_level = "trusted"
+
+[projects."/home/sabossedgh/repos/Postern"]
+trust_level = "trusted"
+
+[projects."/home/sabossedgh/dev/sidekick-usages"]
+trust_level = "trusted"
+
+[projects."/home/sabossedgh/repos/procedure_engine"]
+trust_level = "trusted"
+
+[projects."/home/sabossedgh/repos/ai-devtools"]
+trust_level = "trusted"
+
+[projects."/home/sabossedgh/dev/ai-research-archive"]
+trust_level = "trusted"
+
+[projects."/home/sabossedgh/dev/bompedia"]
+trust_level = "trusted"
+
+[notice]
+hide_full_access_warning = true
+hide_rate_limit_model_nudge = true
+
+[notice.model_migrations]
+"gpt-5.3-codex" = "gpt-5.4"
+
+[mcp_servers.openaiDeveloperDocs]
+url = "https://developers.openai.com/mcp"
+
+[mcp_servers.openaiDeveloperDocs.tools.search_openai_docs]
+approval_mode = "approve"
+
+[mcp_servers.openaiDeveloperDocs.tools.fetch_openai_doc]
+approval_mode = "approve"
+
+[sandbox_workspace_write]
+writable_roots = ["/home/sabossedgh/repos", "/home/sabossedgh/dev"]
+
+[tools]
+web_search = { context_size = "high" }
+
+[tui]
+status_line = ["context-remaining", "model-with-reasoning", "current-dir", "git-branch", "five-hour-limit", "weekly-limit", "used-tokens"]
+pet = "disabled"
+status_line_use_colors = true
+
+[tui.model_availability_nux]
+"gpt-5.5" = 4
+"gpt-5.6-sol" = 4
+
+[plugins."github@openai-curated"]
+enabled = true
+
+[plugins."gmail@openai-curated"]
+enabled = true
+
+[plugins."superpowers@openai-curated"]
+enabled = true
+
+[plugins."coderabbit@openai-curated"]
+enabled = true
+
+[profiles.sidekick_implementation]
+approvals_reviewer = "user"
+
+[profiles.sidekick_implementation.features]
+js_repl = false
+guardian_approval = false
+prevent_idle_sleep = true
+
+[hooks.state]
+
+[hooks.state."/home/sabossedgh/.codex/hooks.json:user_prompt_submit:0:0"]
+enabled = true
+trusted_hash = "sha256:78307189bdd41ce33770cf4ab894bca9463ba3cf0b7302700329d34ae96025b0"
+
+[mcp_servers.dispatch-atlassian]
+enabled = false
+command = "/home/sabossedgh/.nvm/versions/node/v22.23.0/bin/node"
+args = ["/home/sabossedgh/repos/ai-devtools/dispatch-atlassian/dist/index.js"]
+
+[mcp_servers.dispatch-atlassian.env]
+JIRA_BASE_URL = "https://fortressinfosec.atlassian.net"
+JIRA_EMAIL = "sabossedgh@fortressinfosec.com"
+JIRA_API_TOKEN = "{{ .jira_api_token }}"
+
+[mcp_servers.dispatch-atlassian.tools.gather_full_context]
+approval_mode = "approve"
+
+[mcp_servers.dispatch-atlassian.tools.fetch_comments]
+approval_mode = "approve"
+
+[mcp_servers.dispatch-atlassian.tools.fetch_epic_context]
+approval_mode = "approve"
+
+[mcp_servers.dispatch-atlassian.tools.fetch_changelog]
+approval_mode = "approve"
+
+[mcp_servers.dispatch-atlassian.tools.search_confluence]
+approval_mode = "approve"
+
+[mcp_servers.dispatch-atlassian.tools.fetch_ticket]
+approval_mode = "approve"
+
+[mcp_servers.dispatch-atlassian.tools.search_tickets]
+approval_mode = "approve"
+
+[mcp_servers.dispatch-atlassian.tools.fetch_confluence_page]
+approval_mode = "approve"
+
+[mcp_servers.dispatch-atlassian.tools.fetch_attachments]
+approval_mode = "approve"
+
+[mcp_servers.dispatch-gitlab]
+enabled = false
+command = "/home/sabossedgh/.nvm/versions/node/v22.23.0/bin/node"
+args = ["/home/sabossedgh/repos/ai-devtools/dispatch-gitlab/dist/index.js"]
+
+[mcp_servers.dispatch-gitlab.env]
+GITLAB_URL = "https://gitlab.com/fortressinfosec"
+GITLAB_TOKEN = "{{ .gitlab_token }}"
+
+[mcp_servers.dispatch-gitlab.tools.get_linked_mrs]
+approval_mode = "approve"
