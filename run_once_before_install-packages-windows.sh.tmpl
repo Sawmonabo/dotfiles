@@ -85,6 +85,10 @@ WT_SETTINGS_DIR="$WIN_APPDATA/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/L
 if [ -d "$WIN_APPDATA/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe" ]; then
     echo "==> Writing Windows Terminal settings..."
     mkdir -p "$WT_SETTINGS_DIR"
+    if [ -f "$WT_SETTINGS_DIR/settings.json" ]; then
+        cp -a "$WT_SETTINGS_DIR/settings.json" "$WT_SETTINGS_DIR/settings.json.before-dotfiles-$(date +%Y%m%d-%H%M%S)"
+        echo "==> Existing Windows Terminal settings backed up."
+    fi
     cat > "$WT_SETTINGS_DIR/settings.json" << 'WTSETTINGS'
 {
     "$help": "https://aka.ms/terminal-documentation",
@@ -257,6 +261,9 @@ fi
 PS_PROFILE_DIR="$WIN_HOME/Documents/WindowsPowerShell"
 echo "==> Writing PowerShell profile..."
 mkdir -p "$PS_PROFILE_DIR"
+if [ -f "$PS_PROFILE_DIR/Microsoft.PowerShell_profile.ps1" ]; then
+    cp -a "$PS_PROFILE_DIR/Microsoft.PowerShell_profile.ps1" "$PS_PROFILE_DIR/Microsoft.PowerShell_profile.ps1.before-dotfiles-$(date +%Y%m%d-%H%M%S)"
+fi
 cat > "$PS_PROFILE_DIR/Microsoft.PowerShell_profile.ps1" << 'PSPROFILE'
 # Start in repos directory
 Set-Location "\\wsl.localhost\Ubuntu-22.04\home\sabossedgh\repos"

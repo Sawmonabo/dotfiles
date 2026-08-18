@@ -38,7 +38,6 @@ alias ll='ls -alF'
 alias la='ls -A'
 alias l='ls -CF'
 alias cat='bat --paging=never'
-claude() { command claude --verbose --allow-dangerously-skip-permissions "$@"; }
 
 alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
 
@@ -84,9 +83,66 @@ export EDITOR="{{ .editor }} --wait"
 # Detects current IDE and routes `code` accordingly.
 # If running inside Cursor's terminal, `code <path>` opens in Cursor instead of VS Code.
 code() {
+    local ide_launcher="code"
+    local last_arg
+    local routed_target
+    local target_path
+    local -a prefix_args
+
     if [[ -n "$VSCODE_GIT_ASKPASS_NODE" && "$VSCODE_GIT_ASKPASS_NODE" == *".cursor-server"* ]]; then
-        command cursor "$@"
-    else
-        command code "$@"
+        ide_launcher="cursor"
     fi
+
+    if [[ -n "$CODE_WORKSPACE_ROUTER_DISABLE" ]]; then
+        command "$ide_launcher" "$@"
+        return
+    fi
+
+    if (( $# >= 1 )); then
+        last_arg="${@: -1}"
+        target_path="$(realpath -m "$last_arg" 2>/dev/null || printf '%s' "$last_arg")"
+
+        case "$target_path" in
+            /home/sabossedgh/repos)
+                routed_target="/home/sabossedgh/workspaces/repos.code-workspace"
+                ;;
+            /home/sabossedgh/dev)
+                routed_target="/home/sabossedgh/workspaces/dev.code-workspace"
+                ;;
+        esac
+
+        if [[ -n "$routed_target" ]]; then
+            if (( $# > 1 )); then
+                prefix_args=("${@:1:$#-1}")
+                command "$ide_launcher" "${prefix_args[@]}" "$routed_target"
+            else
+                command "$ide_launcher" "$routed_target"
+            fi
+            return
+        fi
+    fi
+
+    command "$ide_launcher" "$@"
 }
+
+alias create-spec='source /home/sabossedgh/repos/ai-devtools/.venv/bin/activate && python /home/sabossedgh/repos/ai-devtools/.claude/tmp/sessions/2026-02-10/artifacts/create_spec_only.py'
+# WSL: route browser opens to Windows default browser
+export BROWSER=wslview
+
+# Added by remote-dev-workstation install
+export PATH="$HOME/bin:$PATH"
+# `claude` alias is defined in ~/.bash_aliases (sourced above ~line 46) and
+# routes through ~/.local/bin/ab-claude with this user's preferred flags.
+
+# promptctl
+[ -f /home/sabossedgh/.promptctl/shell/aliases.sh ] && source /home/sabossedgh/.promptctl/shell/aliases.sh
+
+# >>> agent-brain >>>
+# managed by tools/install.sh — do not edit between the markers
+case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) export PATH="$HOME/.local/bin:$PATH" ;; esac
+# Plain `claude` is the real binary + host-wide policy flags. Cross-host
+# memory sync is explicit via `ab-claude` (see docs/00-design-spec.md §5.2.7
+# for the v1→v2 explicit-sync rationale and the staleness warning that
+# fires when the user forgets to ab-claude after a machine switch).
+alias claude='command claude --verbose --allow-dangerously-skip-permissions'
+# <<< agent-brain <<<

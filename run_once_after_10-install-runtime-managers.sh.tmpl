@@ -1,0 +1,77 @@
+{{ if eq .chezmoi.os "linux" -}}
+#!/bin/bash
+# Install runtime MANAGERS: nvm, uv, rustup, bun, and the Go toolchain.
+# Version policy comes from the versions_mode prompt ({{ .versions_mode }})
+# and the pins in .chezmoidata/versions.toml.
+set -euo pipefail
+
+echo "==> Runtime managers ({{ .versions_mode }} mode)..."
+
+# --- nvm ---
+export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+if [ ! -r "$NVM_DIR/nvm.sh" ]; then
+{{- if eq .versions_mode "pinned" }}
+    PROFILE=/dev/null bash -c "curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/{{ .versions.nvm }}/install.sh | PROFILE=/dev/null bash"
+{{- else }}
+    latest_nvm=$(curl -fsSL https://api.github.com/repos/nvm-sh/nvm/releases/latest | grep -om1 '"tag_name": *"[^"]*"' | cut -d'"' -f4)
+    PROFILE=/dev/null bash -c "curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/${latest_nvm}/install.sh | PROFILE=/dev/null bash"
+{{- end }}
+else
+    echo "    nvm already present; keeping it."
+fi
+
+# --- uv ---
+if ! command -v uv &>/dev/null; then
+{{- if eq .versions_mode "pinned" }}
+    curl -LsSf "https://astral.sh/uv/{{ .versions.uv }}/install.sh" | env UV_NO_MODIFY_PATH=1 sh
+{{- else }}
+    curl -LsSf https://astral.sh/uv/install.sh | env UV_NO_MODIFY_PATH=1 sh
+{{- end }}
+else
+    echo "    uv already present: $(uv --version)"
+fi
+
+# --- rustup ---
+if ! command -v rustup &>/dev/null && [ ! -x "$HOME/.cargo/bin/rustup" ]; then
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
+else
+    echo "    rustup already present."
+fi
+
+# --- bun ---
+if ! command -v bun &>/dev/null && [ ! -x "$HOME/.bun/bin/bun" ]; then
+{{- if eq .versions_mode "pinned" }}
+    curl -fsSL https://bun.com/install | bash -s -- "bun-v{{ .versions.bun }}"
+{{- else }}
+    curl -fsSL https://bun.com/install | bash
+{{- end }}
+else
+    echo "    bun already present."
+fi
+
+# --- Go toolchain (user-local, no sudo) ---
+{{- if eq .versions_mode "pinned" }}
+go_target="{{ .versions.go }}"
+{{- else }}
+go_target=$(curl -fsSL 'https://go.dev/VERSION?m=text' | head -n1); go_target=${go_target#go}
+{{- end }}
+if command -v go &>/dev/null && go version | grep -q "go${go_target}"; then
+    echo "    Go ${go_target} already installed."
+else
+    echo "==> Installing Go ${go_target}..."
+    install_root="$HOME/.local/share/go-versions"
+    tmp=$(mktemp -d)
+    curl -fsSL "https://go.dev/dl/go${go_target}.linux-amd64.tar.gz" -o "$tmp/go.tar.gz"
+    tar -C "$tmp" -xzf "$tmp/go.tar.gz"
+    mkdir -p "$install_root" "$HOME/.local/bin"
+    if [ -e "$install_root/$go_target" ]; then
+        mv "$install_root/$go_target" "$install_root/$go_target.backup.$(date +%Y%m%d%H%M%S)"
+    fi
+    mv "$tmp/go" "$install_root/$go_target"
+    ln -sfn "$install_root/$go_target/bin/go" "$HOME/.local/bin/go"
+    ln -sfn "$install_root/$go_target/bin/gofmt" "$HOME/.local/bin/gofmt"
+    rm -rf "$tmp"
+fi
+
+echo "==> Runtime managers done."
+{{ end -}}

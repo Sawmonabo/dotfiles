@@ -1,0 +1,130 @@
+{{ if eq .chezmoi.os "linux" -}}
+#!/bin/bash
+# Install GLOBAL command-line tools from .chezmoidata/versions.toml.
+# Re-runs whenever the pins change. versions hash: {{ include ".chezmoidata/versions.toml" | sha256sum }}
+set -uo pipefail
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.bun/bin:$PATH"
+export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+failed=()
+
+{{- $mode := .versions_mode }}
+
+# --- npm globals + codex + claude (into the default Node) ---
+if [ -r "$NVM_DIR/nvm.sh" ]; then
+    # shellcheck source=/dev/null
+    source "$NVM_DIR/nvm.sh"
+    nvm use default || failed+=(node-default-missing)
+{{- range $pkg, $ver := .npm_globals }}
+{{- if eq $mode "pinned" }}
+    npm install -g "{{ $pkg }}@{{ $ver }}" || failed+=("npm:{{ $pkg }}")
+{{- else }}
+    npm install -g "{{ $pkg }}" || failed+=("npm:{{ $pkg }}")
+{{- end }}
+{{- end }}
+{{- if eq $mode "pinned" }}
+    npm install -g "@openai/codex@{{ .versions.codex }}" || failed+=(codex)
+    npm install -g "@anthropic-ai/claude-code@{{ .versions.claude }}" || failed+=(claude)
+{{- else }}
+    npm install -g @openai/codex@latest || failed+=(codex)
+    npm install -g @anthropic-ai/claude-code@latest || failed+=(claude)
+{{- end }}
+    corepack enable || failed+=(corepack)
+{{- range $tool, $ver := .corepack_globals }}
+{{- if eq $mode "pinned" }}
+    corepack install --global "{{ $tool }}@{{ $ver }}" || failed+=("corepack:{{ $tool }}")
+{{- else }}
+    corepack install --global "{{ $tool }}@latest" || failed+=("corepack:{{ $tool }}")
+{{- end }}
+{{- end }}
+else
+    failed+=(nvm-missing)
+fi
+
+# --- uv tools ---
+if command -v uv &>/dev/null; then
+{{- range $pkg, $ver := .uv_tools }}
+{{- if eq $mode "pinned" }}
+    uv tool install "{{ $pkg }}=={{ $ver }}" || failed+=("uv:{{ $pkg }}")
+{{- else }}
+    uv tool install --upgrade "{{ $pkg }}" || failed+=("uv:{{ $pkg }}")
+{{- end }}
+{{- end }}
+else
+    failed+=(uv-missing)
+fi
+
+# --- cargo tools ---
+if command -v cargo &>/dev/null; then
+{{- range $pkg, $ver := .cargo_tools }}
+{{- if eq $mode "pinned" }}
+    cargo install --locked "{{ $pkg }}" --version "{{ $ver }}" || failed+=("cargo:{{ $pkg }}")
+{{- else }}
+    cargo install --locked "{{ $pkg }}" || failed+=("cargo:{{ $pkg }}")
+{{- end }}
+{{- end }}
+else
+    failed+=(cargo-missing)
+fi
+
+# --- go tools ---
+if command -v go &>/dev/null; then
+{{- range $mod, $ver := .go_tools }}
+{{- if eq $mode "pinned" }}
+    go install "{{ $mod }}@{{ $ver }}" || failed+=("go:{{ $mod }}")
+{{- else }}
+    go install "{{ $mod }}@latest" || failed+=("go:{{ $mod }}")
+{{- end }}
+{{- end }}
+else
+    failed+=(go-missing)
+fi
+
+# --- kubectl (checksum-verified) ---
+{{- if eq $mode "pinned" }}
+kubectl_ver="v{{ .versions.kubectl }}"
+{{- else }}
+kubectl_ver=$(curl -fsSL https://dl.k8s.io/release/stable.txt)
+{{- end }}
+if command -v kubectl &>/dev/null && kubectl version --client 2>/dev/null | grep -q "$kubectl_ver"; then
+    echo "    kubectl $kubectl_ver already installed."
+else
+    tmp=$(mktemp -d)
+    if curl -fsSL "https://dl.k8s.io/release/${kubectl_ver}/bin/linux/amd64/kubectl" -o "$tmp/kubectl" \
+       && printf '%s  %s\n' "$(curl -fsSL "https://dl.k8s.io/release/${kubectl_ver}/bin/linux/amd64/kubectl.sha256")" "$tmp/kubectl" | sha256sum --check - \
+       && install -m 755 "$tmp/kubectl" "$HOME/.local/bin/kubectl"; then
+        echo "    kubectl $kubectl_ver installed."
+    else
+        failed+=(kubectl)
+    fi
+    rm -rf "$tmp"
+fi
+
+# --- nerdctl (checksum-verified) ---
+{{- if eq $mode "pinned" }}
+nerdctl_ver="{{ .versions.nerdctl }}"
+if command -v nerdctl &>/dev/null && nerdctl --version 2>/dev/null | grep -q "$nerdctl_ver"; then
+    echo "    nerdctl $nerdctl_ver already installed."
+else
+    tmp=$(mktemp -d)
+    archive="nerdctl-${nerdctl_ver}-linux-amd64.tar.gz"
+    if curl -fsSL "https://github.com/containerd/nerdctl/releases/download/v${nerdctl_ver}/${archive}" -o "$tmp/$archive" \
+       && curl -fsSL "https://github.com/containerd/nerdctl/releases/download/v${nerdctl_ver}/SHA256SUMS" -o "$tmp/SHA256SUMS" \
+       && (cd "$tmp" && grep "  ${archive}$" SHA256SUMS | sha256sum --check -) \
+       && tar -xzf "$tmp/$archive" -C "$tmp" nerdctl \
+       && install -m 755 "$tmp/nerdctl" "$HOME/.local/bin/nerdctl"; then
+        echo "    nerdctl $nerdctl_ver installed."
+    else
+        failed+=(nerdctl)
+    fi
+    rm -rf "$tmp"
+fi
+{{- else }}
+echo "    nerdctl: latest mode not automated; install manually from GitHub releases."
+{{- end }}
+
+if [ ${#failed[@]} -gt 0 ]; then
+    printf 'WARNING: tool installs failed: %s\n' "${failed[*]}" >&2
+    exit 1
+fi
+echo "==> Global tools done."
+{{ end -}}

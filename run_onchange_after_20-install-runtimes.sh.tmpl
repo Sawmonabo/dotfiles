@@ -1,0 +1,60 @@
+{{ if eq .chezmoi.os "linux" -}}
+#!/bin/bash
+# Install language RUNTIMES from .chezmoidata/versions.toml pins.
+# Re-runs whenever the pins change. versions hash: {{ include ".chezmoidata/versions.toml" | sha256sum }}
+set -uo pipefail
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.bun/bin:$PATH"
+export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+failed=()
+
+# --- Node via nvm ---
+if [ -r "$NVM_DIR/nvm.sh" ]; then
+    # shellcheck source=/dev/null
+    source "$NVM_DIR/nvm.sh"
+{{- if eq .versions_mode "pinned" }}
+{{- range .versions.node }}
+    nvm install {{ . }} || failed+=("node-{{ . }}")
+{{- end }}
+    nvm alias default {{ .versions.node_default }} || failed+=(node-default)
+{{- else }}
+{{- range .versions.node }}
+    nvm install {{ regexReplaceAll "\\..*$" . "" }} || failed+=("node-{{ . }}")
+{{- end }}
+    nvm alias default {{ regexReplaceAll "\\..*$" .versions.node_default "" }} || failed+=(node-default)
+{{- end }}
+else
+    failed+=(nvm-missing)
+fi
+
+# --- Python via uv ---
+if command -v uv &>/dev/null; then
+{{- if eq .versions_mode "pinned" }}
+{{- range .versions.python_pinned }}
+    uv python install {{ . }} || failed+=("python-{{ . }}")
+{{- end }}
+{{- else }}
+{{- range .versions.python_minors }}
+    uv python install {{ . }} || failed+=("python-{{ . }}")
+{{- end }}
+{{- end }}
+else
+    failed+=(uv-missing)
+fi
+
+# --- Rust toolchain ---
+if command -v rustup &>/dev/null; then
+{{- if eq .versions_mode "pinned" }}
+    rustup toolchain install {{ .versions.rust }} || failed+=(rust-toolchain)
+{{- else }}
+    rustup toolchain install stable || failed+=(rust-toolchain)
+{{- end }}
+else
+    failed+=(rustup-missing)
+fi
+
+if [ ${#failed[@]} -gt 0 ]; then
+    printf 'WARNING: runtime installs failed: %s\n' "${failed[*]}" >&2
+    exit 1
+fi
+echo "==> Runtimes done."
+{{ end -}}

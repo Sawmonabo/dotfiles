@@ -21,7 +21,8 @@ Cross-platform dotfiles managed with [chezmoi](https://www.chezmoi.io/). Support
 sh -c "$(curl -fsLS get.chezmoi.io)" && chezmoi init --apply Sawmonabo/dotfiles
 ```
 
-Chezmoi will prompt for your name, emails, and preferred editor, then automatically:
+Chezmoi will prompt for your name, emails, preferred editor, and whether to
+install **pinned** or **latest** tool versions, then automatically:
 
 1. Detect your OS
 2. Run the platform bootstrap (install bat, oh-my-posh, Nerd Font, etc.)
@@ -50,7 +51,8 @@ chezmoi apply -v
 | `.bashrc` | | x | x | |
 | `.zshrc` | x | | | |
 | `.gitconfig` | x | x | x | |
-| `.gitconfig-work` | x | x | x | |
+| `.gitconfig-personal` | x | x | x | |
+| `.claude/settings.json` | x | x | x | |
 | Oh My Posh theme | x | x | x | x |
 | Windows Terminal settings | | | | x |
 | PowerShell profile | | | | x |
@@ -69,6 +71,22 @@ chezmoi apply -v
 - bat (via cargo)
 - oh-my-posh (via install script)
 - JetBrains Mono Nerd Font (via GitHub release)
+
+**Runtime managers** (`run_once_after_10`): nvm, uv, rustup, bun, Go — versions
+from `.chezmoidata/versions.toml`.
+
+**Runtimes** (`run_onchange_after_20`): pinned Node versions + default alias,
+uv-managed Pythons, Rust toolchain. Re-runs automatically when the pins change.
+
+**Global tools** (`run_onchange_after_30`): npm globals, codex, claude,
+corepack pnpm/yarn, uv tools, cargo tools, go tools, kubectl and nerdctl
+(checksum-verified).
+
+The `versions_mode` prompt at `chezmoi init` chooses **pinned** (exact recorded
+versions) or **latest** (newest in each recorded line). Re-run `chezmoi init`
+to change your answer. Reference lists that stay manual: `docs/apt-packages.txt`
+(needs sudo and per-release availability) and `docs/vscode-extensions.txt`
+(needs the Windows `code` command).
 
 ### Windows (from WSL)
 

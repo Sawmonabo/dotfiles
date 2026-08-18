@@ -2,9 +2,10 @@ sourceDir = "{{ .chezmoi.homeDir }}/dev/dotfiles"
 
 [data]
     name = "{{ promptStringOnce . "name" "Git user name" }}"
-    email = "{{ promptStringOnce . "email" "Git personal email (default for all repos)" }}"
-    work_email = "{{ promptStringOnce . "work_email" "Git work email (for ~/work/ repos)" }}"
+    email = "{{ promptStringOnce . "email" "Git default email (all repos unless overridden)" }}"
+    personal_email = "{{ promptStringOnce . "personal_email" "Git personal email (for ~/dev/ repos)" }}"
     editor = "{{ promptStringOnce . "editor" "Preferred editor (cursor/code/vim)" }}"
+    versions_mode = "{{ promptChoiceOnce . "versions_mode" "Install pinned or latest tool versions" (list "pinned" "latest") }}"
 {{- if eq .chezmoi.os "linux" }}
 {{-   if (.chezmoi.kernel.osrelease | lower | contains "microsoft") }}
     wsl_memory = "{{ promptStringOnce . "wsl_memory" "WSL memory limit, e.g. 8GB" }}"

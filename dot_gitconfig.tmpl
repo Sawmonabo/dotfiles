@@ -7,10 +7,10 @@
     defaultBranch = main
 [pull]
     rebase = false
-[alias]
-    refresh = !git fetch --all --prune && git pull --all --prune
 
 # Directory-based identity overrides
-# Repos under ~/work/ use work email
-[includeIf "gitdir:~/work/"]
-    path = ~/.gitconfig-work
+# Repos under ~/dev/ use personal email
+[includeIf "gitdir:~/dev/"]
+    path = ~/.gitconfig-personal
+[alias]
+    refresh = !git fetch --all --prune && git pull --all --prune
