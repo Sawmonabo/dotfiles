@@ -37,7 +37,7 @@ Because the source root doubles as the deploy root, every non-deployable file is
 dotfiles/
 ├── README.md                        # user-facing: what + quick start
 ├── CLAUDE.md                        # repo dev docs (never deploys — outside home/)
-├── docs/                            # platform guides, apt/vscode reference lists,
+├── docs/                            # platform guides (human-facing only)
 │   └── superpowers/specs/           #   design specs (this file)
 ├── .github/workflows/ci.yml         # render + lint + secret-scan
 ├── .chezmoiroot                     # one line: "home"
@@ -45,7 +45,8 @@ dotfiles/
     ├── .chezmoi.toml.tmpl           # prompts: identity, versions_mode, wsl, tokens
     ├── .chezmoiignore               # OS gating only (bashrc/zshrc)
     ├── .chezmoidata/
-    │   └── versions.toml            # all pins (unchanged)
+    │   ├── versions.toml            # all pins (unchanged)
+    │   └── packages.toml            # apt packages + VS Code extensions (data, not docs)
     ├── .chezmoitemplates/
     │   ├── nvm-source.sh            # NVM_DIR export + source nvm.sh (used 4×)
     │   └── backup-file.sh           # timestamped backup-before-overwrite (used 2×)
@@ -106,6 +107,7 @@ dotfiles/
 | `run_onchange_deploy-wsl-windows-configs.sh.tmpl` | `home/.chezmoiscripts/wsl/run_onchange_after_10-deploy-windows-configs.sh.tmpl` |
 | `run_onchange_configure-cursor-terminal-font.sh.tmpl` | `home/.chezmoiscripts/wsl/run_onchange_after_20-cursor-terminal-font.sh.tmpl` |
 | `README.md`, `CLAUDE.md`, `docs/` | stay at repo root (now outside the deploy boundary by construction) |
+| `docs/apt-packages.txt`, `docs/vscode-extensions.txt` | merged into `home/.chezmoidata/packages.toml` — they are input data, not documentation; README documents how to use them |
 | — (new) | `.chezmoiroot`, `home/.chezmoitemplates/*`, `.github/workflows/ci.yml` |
 
 All moves use `git mv` to preserve history.
