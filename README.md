@@ -83,9 +83,9 @@ corepack pnpm/yarn, uv tools, cargo tools, go tools, and podman (via apt).
 
 The `versions_mode` prompt at `chezmoi init` chooses **pinned** (exact recorded
 versions) or **latest** (newest in each recorded line). Re-run `chezmoi init`
-to change your answer. Reference lists that stay manual: `docs/apt-packages.txt`
-(needs sudo and per-release availability) and `docs/vscode-extensions.txt`
-(needs the Windows `code` command).
+to change your answer. Reference lists that stay manual: `home/.chezmoidata/packages.toml` holds the
+recorded apt package names (need sudo + per-release availability review) and
+VS Code extension IDs (need the Windows `code` command).
 
 ### Windows (from WSL)
 
