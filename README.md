@@ -78,9 +78,8 @@ from `.chezmoidata/versions.toml`.
 **Runtimes** (`run_onchange_after_20`): pinned Node versions + default alias,
 uv-managed Pythons, Rust toolchain. Re-runs automatically when the pins change.
 
-**Global tools** (`run_onchange_after_30`): npm globals, codex, claude,
-corepack pnpm/yarn, uv tools, cargo tools, go tools, kubectl and nerdctl
-(checksum-verified).
+**Global tools** (`run_onchange_after_30`): codex, claude,
+corepack pnpm/yarn, uv tools, cargo tools, go tools, and podman (via apt).
 
 The `versions_mode` prompt at `chezmoi init` chooses **pinned** (exact recorded
 versions) or **latest** (newest in each recorded line). Re-run `chezmoi init`

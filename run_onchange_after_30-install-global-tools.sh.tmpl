@@ -14,13 +14,6 @@ if [ -r "$NVM_DIR/nvm.sh" ]; then
     # shellcheck source=/dev/null
     source "$NVM_DIR/nvm.sh"
     nvm use default || failed+=(node-default-missing)
-{{- range $pkg, $ver := .npm_globals }}
-{{- if eq $mode "pinned" }}
-    npm install -g "{{ $pkg }}@{{ $ver }}" || failed+=("npm:{{ $pkg }}")
-{{- else }}
-    npm install -g "{{ $pkg }}" || failed+=("npm:{{ $pkg }}")
-{{- end }}
-{{- end }}
 {{- if eq $mode "pinned" }}
     npm install -g "@openai/codex@{{ .versions.codex }}" || failed+=(codex)
     npm install -g "@anthropic-ai/claude-code@{{ .versions.claude }}" || failed+=(claude)
@@ -79,48 +72,13 @@ else
     failed+=(go-missing)
 fi
 
-# --- kubectl (checksum-verified) ---
-{{- if eq $mode "pinned" }}
-kubectl_ver="v{{ .versions.kubectl }}"
-{{- else }}
-kubectl_ver=$(curl -fsSL https://dl.k8s.io/release/stable.txt)
-{{- end }}
-if command -v kubectl &>/dev/null && kubectl version --client 2>/dev/null | grep -q "$kubectl_ver"; then
-    echo "    kubectl $kubectl_ver already installed."
+# --- podman (Ubuntu repository package) ---
+if ! command -v podman &>/dev/null; then
+    echo "==> Installing podman via apt (sudo may prompt)..."
+    sudo apt-get install -y podman || failed+=(podman)
 else
-    tmp=$(mktemp -d)
-    if curl -fsSL "https://dl.k8s.io/release/${kubectl_ver}/bin/linux/amd64/kubectl" -o "$tmp/kubectl" \
-       && printf '%s  %s\n' "$(curl -fsSL "https://dl.k8s.io/release/${kubectl_ver}/bin/linux/amd64/kubectl.sha256")" "$tmp/kubectl" | sha256sum --check - \
-       && install -m 755 "$tmp/kubectl" "$HOME/.local/bin/kubectl"; then
-        echo "    kubectl $kubectl_ver installed."
-    else
-        failed+=(kubectl)
-    fi
-    rm -rf "$tmp"
+    echo "    podman already installed: $(podman --version)"
 fi
-
-# --- nerdctl (checksum-verified) ---
-{{- if eq $mode "pinned" }}
-nerdctl_ver="{{ .versions.nerdctl }}"
-if command -v nerdctl &>/dev/null && nerdctl --version 2>/dev/null | grep -q "$nerdctl_ver"; then
-    echo "    nerdctl $nerdctl_ver already installed."
-else
-    tmp=$(mktemp -d)
-    archive="nerdctl-${nerdctl_ver}-linux-amd64.tar.gz"
-    if curl -fsSL "https://github.com/containerd/nerdctl/releases/download/v${nerdctl_ver}/${archive}" -o "$tmp/$archive" \
-       && curl -fsSL "https://github.com/containerd/nerdctl/releases/download/v${nerdctl_ver}/SHA256SUMS" -o "$tmp/SHA256SUMS" \
-       && (cd "$tmp" && grep "  ${archive}$" SHA256SUMS | sha256sum --check -) \
-       && tar -xzf "$tmp/$archive" -C "$tmp" nerdctl \
-       && install -m 755 "$tmp/nerdctl" "$HOME/.local/bin/nerdctl"; then
-        echo "    nerdctl $nerdctl_ver installed."
-    else
-        failed+=(nerdctl)
-    fi
-    rm -rf "$tmp"
-fi
-{{- else }}
-echo "    nerdctl: latest mode not automated; install manually from GitHub releases."
-{{- end }}
 
 if [ ${#failed[@]} -gt 0 ]; then
     printf 'WARNING: tool installs failed: %s\n' "${failed[*]}" >&2

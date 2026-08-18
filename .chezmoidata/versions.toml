@@ -13,14 +13,6 @@ nvm = "v0.40.2"
 uv = "0.11.21"
 codex = "0.147.0"
 claude = "2.1.234"
-kubectl = "1.32.2"
-nerdctl = "2.2.0"
-
-# Global npm packages (installed into the default Node). name = version
-[npm_globals]
-"@cyfrin/aderyn" = "0.6.8"
-"@mermaid-js/mermaid-cli" = "11.16.0"
-"vibe-annotations-server" = "0.5.1"
 
 [corepack_globals]
 pnpm = "10.33.2"
