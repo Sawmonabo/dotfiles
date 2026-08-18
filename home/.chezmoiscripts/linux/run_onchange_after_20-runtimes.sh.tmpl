@@ -8,9 +8,7 @@ export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
 failed=()
 
 # --- Node via nvm ---
-if [ -r "$NVM_DIR/nvm.sh" ]; then
-    # shellcheck source=/dev/null
-    source "$NVM_DIR/nvm.sh"
+{{ template "nvm-load.sh" }}
 {{- if eq .versions_mode "pinned" }}
 {{- range .versions.node }}
     nvm install {{ . }} || failed+=("node-{{ . }}")

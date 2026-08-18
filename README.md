@@ -73,7 +73,7 @@ chezmoi apply -v
 - JetBrains Mono Nerd Font (via GitHub release)
 
 **Runtime managers** (`run_once_after_10`): nvm, uv, rustup, bun, Go — versions
-from `.chezmoidata/versions.toml`.
+from `home/.chezmoidata/versions.toml`.
 
 **Runtimes** (`run_onchange_after_20`): pinned Node versions + default alias,
 uv-managed Pythons, Rust toolchain. Re-runs automatically when the pins change.
@@ -83,9 +83,9 @@ corepack pnpm/yarn, uv tools, cargo tools, go tools, and podman (via apt).
 
 The `versions_mode` prompt at `chezmoi init` chooses **pinned** (exact recorded
 versions) or **latest** (newest in each recorded line). Re-run `chezmoi init`
-to change your answer. Reference lists that stay manual: `docs/apt-packages.txt`
-(needs sudo and per-release availability) and `docs/vscode-extensions.txt`
-(needs the Windows `code` command).
+to change your answer. Reference lists that stay manual: `home/.chezmoidata/packages.toml` holds the
+recorded apt package names (need sudo + per-release availability review) and
+VS Code extension IDs (need the Windows `code` command).
 
 ### Windows (from WSL)
 
@@ -158,12 +158,12 @@ This keeps you in control — no half-finished changes get pushed, and no unexpe
 
 ### Git identity per directory
 
-`.gitconfig` uses your personal email as the default. Repos under `~/work/` automatically switch to your work email via Git's `includeIf` and `.gitconfig-work`.
+`.gitconfig` uses your default email (`.email`) globally. Repos under `~/dev/` automatically switch to your personal email via Git's `includeIf` and `.gitconfig-personal`.
 
 To change either email, re-run `chezmoi init` or edit the source:
 
 ```bash
-chezmoi edit ~/.gitconfig-work
+chezmoi edit ~/.gitconfig-personal
 chezmoi apply
 ```
 
@@ -182,21 +182,36 @@ chezmoi apply
 
 ```text
 ~/dev/dotfiles/
-├── .chezmoi.toml.tmpl                                  # Interactive setup prompts
-├── .chezmoiignore                                      # OS-conditional ignores
-├── dot_bashrc.tmpl                                     # → ~/.bashrc (Linux/WSL)
-├── dot_zshrc.tmpl                                      # → ~/.zshrc (macOS)
-├── dot_gitconfig.tmpl                                  # → ~/.gitconfig (all)
-├── dot_gitconfig-work.tmpl                             # → ~/.gitconfig-work (all)
-├── dot_config/oh-my-posh/catppuccin_mocha.omp.json     # → ~/.config/oh-my-posh/
-├── run_once_before_install-packages-linux.sh.tmpl       # Linux/WSL bootstrap
-├── run_once_before_install-packages-darwin.sh.tmpl      # macOS bootstrap
-├── run_once_before_install-packages-windows.sh.tmpl     # WSL → Windows config
-└── docs/                                                # Platform documentation
+├── README.md                                              # This file
+├── CLAUDE.md                                               # Repo dev docs (never deploys)
+├── .chezmoiroot                                            # One line: "home" — the deploy boundary
+├── .github/workflows/ci.yml                                # Render + lint + secret-scan
+├── docs/                                                    # Platform documentation
+└── home/                                                    # Mirrors ~ — everything here can deploy
+    ├── .chezmoi.toml.tmpl                                   # Interactive setup prompts
+    ├── .chezmoiignore                                       # OS-conditional ignores
+    ├── .chezmoidata/
+    │   ├── versions.toml                                    # Pinned tool/runtime versions
+    │   └── packages.toml                                    # apt package names + VS Code extension IDs
+    ├── .chezmoitemplates/
+    │   └── nvm-load.sh                                      # Shared nvm guard+source fragment
+    ├── .chezmoiscripts/
+    │   ├── linux/                                           # run_once_before_00-packages.sh.tmpl, etc.
+    │   ├── darwin/                                          # run_once_before_00-packages.sh.tmpl, etc.
+    │   └── wsl/                                             # run_once_before_00-packages-windows.sh.tmpl, etc.
+    ├── private_dot_bashrc.tmpl                              # → ~/.bashrc (Linux/WSL)
+    ├── dot_zshrc.tmpl                                       # → ~/.zshrc (macOS)
+    ├── dot_gitconfig.tmpl                                   # → ~/.gitconfig (all)
+    ├── dot_gitconfig-personal.tmpl                          # → ~/.gitconfig-personal (all)
+    ├── dot_claude/                                          # → ~/.claude/
+    ├── dot_codex/                                           # → ~/.codex/
+    └── dot_config/oh-my-posh/catppuccin_mocha.omp.json      # → ~/.config/oh-my-posh/
 ```
 
-> **Note on `dot_` prefix**: chezmoi convention — `dot_bashrc` deploys as `~/.bashrc`.
-> The `run_once_before_` prefix means the script runs once, before file deployment.
+> **Note on `dot_`/`private_` prefixes**: chezmoi convention — `dot_bashrc` deploys as `~/.bashrc`,
+> `private_dot_bashrc` deploys as `~/.bashrc` with restricted permissions.
+> The `run_once_before_` prefix means the script runs once, before file deployment; `run_onchange_after_`
+> means it re-runs whenever its content changes, after file deployment.
 
 ## Platform Docs
 

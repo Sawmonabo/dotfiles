@@ -24,10 +24,10 @@ WSL installation uses the same commands as Linux — the bootstrap automatically
 sh -c "$(curl -fsLS get.chezmoi.io)" && chezmoi init --apply Sawmonabo/dotfiles
 ```
 
-This runs **three** bootstrap scripts on WSL:
+This runs **two** bootstrap scripts on WSL:
 
-1. `install-packages-linux.sh` — bat, oh-my-posh, fonts for Linux
-2. `install-packages-windows.sh` — oh-my-posh.exe, fonts, Windows Terminal settings, PowerShell profile
+1. `home/.chezmoiscripts/linux/run_once_before_00-packages.sh.tmpl` — bat, oh-my-posh, fonts for Linux
+2. `home/.chezmoiscripts/wsl/run_once_before_00-packages-windows.sh.tmpl` — oh-my-posh.exe, fonts, Windows Terminal settings, PowerShell profile
 
 ### Step-by-step install
 
@@ -59,8 +59,8 @@ source ~/.bashrc
 
 WSL runs Linux inside Windows. This dotfiles setup manages **both sides**:
 
-1. **Linux side** (`run_once_before_install-packages-linux.sh.tmpl`): Installs bat, oh-my-posh, fonts for the Linux environment
-2. **Windows side** (`run_once_before_install-packages-windows.sh.tmpl`): Writes Windows Terminal settings, PowerShell profile, installs oh-my-posh.exe and fonts for the Windows environment
+1. **Linux side** (`home/.chezmoiscripts/linux/run_once_before_00-packages.sh.tmpl`): Installs bat, oh-my-posh, fonts for the Linux environment
+2. **Windows side** (`home/.chezmoiscripts/wsl/run_once_before_00-packages-windows.sh.tmpl`): Writes Windows Terminal settings, PowerShell profile, installs oh-my-posh.exe and fonts for the Windows environment
 
 Both scripts run automatically when WSL is detected (via `$WSL_DISTRO_NAME`).
 
@@ -109,7 +109,7 @@ source ~/.bashrc           # reload in current shell
 
 The Windows Terminal settings are embedded in the bootstrap script. To modify:
 
-1. Edit the source: `chezmoi cd` then edit `run_once_before_install-packages-windows.sh.tmpl`
+1. Edit the source: `chezmoi cd` then edit `home/.chezmoiscripts/wsl/run_once_before_00-packages-windows.sh.tmpl`
 1. Force the script to re-run:
 
 ```bash

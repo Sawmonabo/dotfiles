@@ -111,7 +111,7 @@ All colors are from the Catppuccin Mocha palette.
 The Windows Terminal `settings.json` is embedded in the WSL bootstrap script. To change it:
 
 1. Open the chezmoi source directory: `chezmoi cd`
-1. Edit `run_once_before_install-packages-windows.sh.tmpl` — find the `WTSETTINGS` heredoc
+1. Edit `home/.chezmoiscripts/wsl/run_once_before_00-packages-windows.sh.tmpl` — find the `WTSETTINGS` heredoc
 1. Force re-run and apply:
 
 ```bash
@@ -155,4 +155,4 @@ The PowerShell profile at `Documents\WindowsPowerShell\Microsoft.PowerShell_prof
 & "$env:LOCALAPPDATA\Programs\oh-my-posh\bin\oh-my-posh.exe" init pwsh --config "$env:LOCALAPPDATA\Programs\oh-my-posh\themes\catppuccin_mocha.omp.json" | Invoke-Expression
 ```
 
-To modify the PowerShell profile, edit the `PSPROFILE` heredoc in `run_once_before_install-packages-windows.sh.tmpl`.
+To modify the PowerShell profile, edit the `PSPROFILE` heredoc in `home/.chezmoiscripts/wsl/run_once_before_00-packages-windows.sh.tmpl`.
