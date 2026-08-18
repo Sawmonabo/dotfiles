@@ -1,10 +1,9 @@
+{{ if eq .chezmoi.os "darwin" -}}
 #!/bin/bash
 # Configure macOS Terminal.app to use JetBrains Mono Nerd Font
 # This script runs when its content changes
 
 set -euo pipefail
-
-{{- if eq .chezmoi.os "darwin" }}
 
 echo "==> Configuring Terminal.app font..."
 
@@ -53,6 +52,4 @@ echo "    ⚠ Terminal.app font must be set manually"
 echo "    Run: ~/.terminal-font-setup.sh for instructions"
 echo "    (Or open Terminal → Settings → Profiles → Basic → Font)"
 
-{{- else }}
-echo "Skipping Terminal.app configuration (macOS only)"
-{{- end }}
+{{ end -}}

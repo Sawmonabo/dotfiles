@@ -32,6 +32,8 @@ jobs:
               jira_api_token = "ci-placeholder"
               gitlab_token = "ci-placeholder"
           EOF
+      - name: Validate config template (init context)
+        run: chezmoi --source "$PWD" execute-template --init < home/.chezmoi.toml.tmpl > /dev/null
       - name: Render every template, lint every non-empty script
         run: |
           set -euo pipefail
