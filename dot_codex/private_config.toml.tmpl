@@ -154,33 +154,10 @@ JIRA_BASE_URL = "https://fortressinfosec.atlassian.net"
 JIRA_EMAIL = "sabossedgh@fortressinfosec.com"
 JIRA_API_TOKEN = "{{ .jira_api_token }}"
 
-[mcp_servers.dispatch-atlassian.tools.gather_full_context]
+{{- range list "fetch_attachments" "fetch_changelog" "fetch_comments" "fetch_confluence_page" "fetch_epic_context" "fetch_ticket" "gather_full_context" "search_confluence" "search_tickets" }}
+[mcp_servers.dispatch-atlassian.tools.{{ . }}]
 approval_mode = "approve"
-
-[mcp_servers.dispatch-atlassian.tools.fetch_comments]
-approval_mode = "approve"
-
-[mcp_servers.dispatch-atlassian.tools.fetch_epic_context]
-approval_mode = "approve"
-
-[mcp_servers.dispatch-atlassian.tools.fetch_changelog]
-approval_mode = "approve"
-
-[mcp_servers.dispatch-atlassian.tools.search_confluence]
-approval_mode = "approve"
-
-[mcp_servers.dispatch-atlassian.tools.fetch_ticket]
-approval_mode = "approve"
-
-[mcp_servers.dispatch-atlassian.tools.search_tickets]
-approval_mode = "approve"
-
-[mcp_servers.dispatch-atlassian.tools.fetch_confluence_page]
-approval_mode = "approve"
-
-[mcp_servers.dispatch-atlassian.tools.fetch_attachments]
-approval_mode = "approve"
-
+{{ end }}
 [mcp_servers.dispatch-gitlab]
 enabled = false
 command = "/home/sabossedgh/.nvm/versions/node/v22.23.0/bin/node"
