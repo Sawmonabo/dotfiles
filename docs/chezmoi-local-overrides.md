@@ -38,19 +38,19 @@ evaluated at runtime by Git itself.
     name = {{ .name | quote }}
     email = {{ .email | quote }}
 
-[includeIf "gitdir:~/work/"]
-    path = ~/.gitconfig-work
+[includeIf "gitdir:~/office/"]
+    path = ~/.gitconfig-office
 
 [includeIf "gitdir:~/personal/"]
     path = ~/.gitconfig-personal
 ```
 
-**chezmoi-managed `dot_gitconfig-work`:**
+**chezmoi-managed `dot_gitconfig-office`:**
 
 ```ini
 [user]
     email = sam@company.com
-    signingKey = WORK_GPG_KEY_ID
+    signingKey = OFFICE_GPG_KEY_ID
 ```
 
 **chezmoi-managed `dot_gitconfig-personal`:**

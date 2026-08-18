@@ -48,7 +48,7 @@ dotfiles/
     │   ├── versions.toml            # all pins (unchanged)
     │   └── packages.toml            # apt packages + VS Code extensions (data, not docs)
     ├── .chezmoitemplates/
-    │   └── nvm-source.sh            # NVM_DIR export + source nvm.sh (used 4×)
+    │   └── nvm-load.sh              # shared nvm guard+source block (used 2×)
     ├── .chezmoiscripts/
     │   ├── linux/
     │   │   ├── run_once_before_00-packages.sh.tmpl
