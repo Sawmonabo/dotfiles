@@ -48,8 +48,7 @@ dotfiles/
     │   ├── versions.toml            # all pins (unchanged)
     │   └── packages.toml            # apt packages + VS Code extensions (data, not docs)
     ├── .chezmoitemplates/
-    │   ├── nvm-source.sh            # NVM_DIR export + source nvm.sh (used 4×)
-    │   └── backup-file.sh           # timestamped backup-before-overwrite (used 2×)
+    │   └── nvm-source.sh            # NVM_DIR export + source nvm.sh (used 4×)
     ├── .chezmoiscripts/
     │   ├── linux/
     │   │   ├── run_once_before_00-packages.sh.tmpl
@@ -114,8 +113,12 @@ All moves use `git mv` to preserve history.
 
 ### Fragment extraction
 
-- `nvm-source.sh`: the `export NVM_DIR=…; source "$NVM_DIR/nvm.sh"` preamble, consumed via `{{ template "nvm-source.sh" . }}` in runtimes, global-tools, and any future Node-dependent script.
-- `backup-file.sh`: parameterized timestamped-backup helper used by the Windows Terminal settings and PowerShell profile writes.
+- `nvm-load.sh`: the exact three-line nvm guard+source block shared by the
+  runtimes and global-tools scripts, consumed via `{{ template "nvm-load.sh" }}`.
+- `backup-file.sh` (originally planned) is dropped: the two backup blocks
+  differ in indentation and messaging, so extraction would change rendered
+  bytes; duplication of two nearly-identical guards is cheaper than a
+  parameterized template.
 
 Fragments are extracted only where the code is duplicated today; no speculative fragments.
 

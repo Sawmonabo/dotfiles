@@ -10,9 +10,7 @@ failed=()
 {{- $mode := .versions_mode }}
 
 # --- npm globals + codex + claude (into the default Node) ---
-if [ -r "$NVM_DIR/nvm.sh" ]; then
-    # shellcheck source=/dev/null
-    source "$NVM_DIR/nvm.sh"
+{{ template "nvm-load.sh" }}
     nvm use default || failed+=(node-default-missing)
 {{- if eq $mode "pinned" }}
     npm install -g "@openai/codex@{{ .versions.codex }}" || failed+=(codex)
