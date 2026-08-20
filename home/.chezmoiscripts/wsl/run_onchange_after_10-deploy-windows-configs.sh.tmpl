@@ -81,7 +81,6 @@ MANAGED_KEYS=(
     "wsl2|memory|$WSL_MEMORY"
     "wsl2|swap|4GB"
     "wsl2|processors|6"
-    "wsl2|pageReporting|true"
     "experimental|autoMemoryReclaim|gradual"
     "experimental|sparseVhd|true"
 )
@@ -93,7 +92,6 @@ if [[ ! -f "$WSLCONFIG" ]]; then
 memory=$WSL_MEMORY
 swap=4GB
 processors=6
-pageReporting=true
 
 [experimental]
 # Automatically reclaim cached memory (the WSL VM otherwise holds page cache
@@ -118,6 +116,13 @@ else
         IFS='|' read -r section key value <<< "$entry"
         merge_ini_key "$TMPMERGED" "$section" "$key" "$value"
     done
+    # Keys an earlier version wrote under [wsl2] that WSL 2.6 rejects
+    # ("Unknown key 'wsl2.pageReporting'"): delete them from that section only.
+    awk '
+        /^\[/ { insec = ($0 == "[wsl2]") }
+        insec && ($0 ~ /^pageReporting=/ || $0 ~ /^autoMemoryReclaim=/) { next }
+        { print }
+    ' "$TMPMERGED" > "$TMPMERGED.tmp" && mv "$TMPMERGED.tmp" "$TMPMERGED"
 
     if diff -q "$TMPORIGINAL" "$TMPMERGED" > /dev/null 2>&1; then
         echo "    Already up to date."
