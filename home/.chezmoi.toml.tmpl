@@ -12,6 +12,6 @@ sourceDir = "{{ .chezmoi.homeDir }}/dev/dotfiles"
 {{- if eq .chezmoi.os "linux" }}
 {{-   if (.chezmoi.kernel.osrelease | lower | contains "microsoft") }}
     wsl_memory = "{{ promptStringOnce . "wsl_memory" "WSL memory limit, e.g. 8GB" }}"
-    restart_wsl_path = "{{ promptStringOnce . "restart_wsl_path" "RestartWSL scripts path, relative to Windows home or full path (e.g. Desktop/RestartWSL)" }}"
+    restart_wsl_path = {{ promptStringOnce . "restart_wsl_path" "RestartWSL scripts path, relative to Windows home or full path (e.g. Desktop/RestartWSL)" | quote }}
 {{-   end }}
 {{- end }}
