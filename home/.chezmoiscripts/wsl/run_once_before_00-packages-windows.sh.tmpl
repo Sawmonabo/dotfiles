@@ -81,9 +81,20 @@ if ls "$WIN_FONT_DIR"/JetBrainsMono*.ttf &>/dev/null; then
         Get-ChildItem -LiteralPath '$WIN_FONT_DIR_W' -Filter 'JetBrainsMono*.ttf' | ForEach-Object {
             New-ItemProperty -Path \$key -Name (\$_.BaseName + ' (TrueType)') -Value \$_.FullName -PropertyType String -Force | Out-Null
         }
+        # Registry alone is not enough for already-running apps: load the font
+        # resources into the session and broadcast WM_FONTCHANGE, which is what
+        # the Fonts control panel does. Without it Windows Terminal keeps saying
+        # 'Unable to find the following fonts' until the user signs out.
+        Add-Type -Namespace Win32 -Name Fonts -MemberDefinition @'
+            [DllImport(\"gdi32.dll\", CharSet = CharSet.Unicode)] public static extern int AddFontResource(string lpFileName);
+            [DllImport(\"user32.dll\")] public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam, uint fuFlags, uint uTimeout, out IntPtr lpdwResult);
+'@
+        Get-ChildItem -LiteralPath '$WIN_FONT_DIR_W' -Filter 'JetBrainsMono*.ttf' | ForEach-Object { [void][Win32.Fonts]::AddFontResource(\$_.FullName) }
+        \$r = [IntPtr]::Zero
+        [void][Win32.Fonts]::SendMessageTimeout([IntPtr]0xffff, 0x001D, [IntPtr]::Zero, [IntPtr]::Zero, 2, 1000, [ref]\$r)
         (Get-ChildItem -LiteralPath '$WIN_FONT_DIR_W' -Filter 'JetBrainsMono*.ttf').Count
     " 2>/dev/null | tr -d '\r' | sed 's/^/    registered fonts: /'
-    echo "    (sign out/in or restart Windows Terminal if a font still shows as missing)"
+    echo "    (restart Windows Terminal; sign out/in only if a font still shows as missing)"
 fi
 
 # --- Windows Terminal settings.json ---
