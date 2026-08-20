@@ -120,8 +120,15 @@ code() {
 }
 
 alias create-spec='source /home/sabossedgh/repos/ai-devtools/.venv/bin/activate && python /home/sabossedgh/repos/ai-devtools/.claude/tmp/sessions/2026-02-10/artifacts/create_spec_only.py'
-# WSL: route browser opens to Windows default browser
-export BROWSER=wslview
+# WSL: route browser opens (bw login SSO/Duo, gh auth, xdg-open) to Windows.
+# Prefer Chrome directly: wslview needs the wslu package, which is not in the
+# Ubuntu 26.04 repos, and a BROWSER that does not resolve makes CLIs hang
+# silently waiting for a callback. Fall back to wslview where it exists.
+if [ -x "/mnt/c/Program Files/Google/Chrome/Application/chrome.exe" ]; then
+    export BROWSER="/mnt/c/Program Files/Google/Chrome/Application/chrome.exe"
+elif command -v wslview >/dev/null 2>&1; then
+    export BROWSER=wslview
+fi
 
 # Added by remote-dev-workstation install
 export PATH="$HOME/bin:$PATH"

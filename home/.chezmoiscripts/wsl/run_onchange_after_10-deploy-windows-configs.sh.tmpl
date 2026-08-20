@@ -81,6 +81,7 @@ MANAGED_KEYS=(
     "wsl2|memory|$WSL_MEMORY"
     "wsl2|swap|4GB"
     "wsl2|processors|6"
+    "wsl2|networkingMode|mirrored"
     "experimental|autoMemoryReclaim|gradual"
     "experimental|sparseVhd|true"
 )
@@ -92,6 +93,11 @@ if [[ ! -f "$WSLCONFIG" ]]; then
 memory=$WSL_MEMORY
 swap=4GB
 processors=6
+# Mirrored networking: WSL shares the host's interfaces and localhost in both
+# directions, so Windows tools (Compass, Studio 3T, browsers) reach services
+# bound inside WSL/podman reliably. NAT's localhost-forwarding shim misses
+# rootless-podman bindings. Requires Win11 22H2+ / WSL 2.0+.
+networkingMode=mirrored
 
 [experimental]
 # Automatically reclaim cached memory (the WSL VM otherwise holds page cache
