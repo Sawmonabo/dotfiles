@@ -11,6 +11,9 @@ if command -v apt-get &>/dev/null && ! command -v cc &>/dev/null; then
     sudo apt-get update -qq && sudo apt-get install -y -qq build-essential curl unzip git ca-certificates
 fi
 
+# --- standard directories (Windows Terminal's WSL profile opens in ~/repos) ---
+mkdir -p "$HOME/repos" "$HOME/dev"
+
 # --- bat ---
 # Prefer the distro package (seconds, no compiler). Debian/Ubuntu ship the
 # binary as `batcat`; expose it as `bat` in ~/.local/bin. Fall back to cargo

@@ -235,7 +235,6 @@ if [ -d "$WIN_APPDATA/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe" ]; then
                 "name": "{{ env "WSL_DISTRO_NAME" }}",
                 "commandline": "wsl.exe -d {{ env "WSL_DISTRO_NAME" }} --cd ~/repos",
                 "icon": "ms-appx:///ProfileIcons/{9acb9455-ca41-5af7-950f-6bca1bc9722f}.png",
-                "startingDirectory": "//wsl.localhost/{{ env "WSL_DISTRO_NAME" }}/home/{{ .chezmoi.username }}/repos",
                 "tabColor": "#FAB387"
             }
         ]
@@ -283,8 +282,9 @@ if [ -f "$PS_PROFILE_DIR/Microsoft.PowerShell_profile.ps1" ]; then
     cp -a "$PS_PROFILE_DIR/Microsoft.PowerShell_profile.ps1" "$PS_PROFILE_DIR/Microsoft.PowerShell_profile.ps1.before-dotfiles-$(date +%Y%m%d-%H%M%S)"
 fi
 cat > "$PS_PROFILE_DIR/Microsoft.PowerShell_profile.ps1" << 'PSPROFILE'
-# Start in repos directory
-Set-Location "\\wsl.localhost\{{ env "WSL_DISTRO_NAME" }}\home\{{ .chezmoi.username }}\repos"
+# Start in the WSL repos directory when it is reachable (WSL may not be running yet)
+$wslRepos = "\\wsl.localhost\{{ env "WSL_DISTRO_NAME" }}\home\{{ .chezmoi.username }}\repos"
+if (Test-Path -LiteralPath $wslRepos) { Set-Location -LiteralPath $wslRepos }
 
 # Oh My Posh prompt
 & "$env:LOCALAPPDATA\Programs\oh-my-posh\bin\oh-my-posh.exe" init pwsh --config "$env:LOCALAPPDATA\Programs\oh-my-posh\themes\catppuccin_mocha.omp.json" | Invoke-Expression
