@@ -106,19 +106,54 @@ if [ -d "$WIN_APPDATA/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe" ]; then
         cp -a "$WT_SETTINGS_DIR/settings.json" "$WT_SETTINGS_DIR/settings.json.before-dotfiles-$(date +%Y%m%d-%H%M%S)"
         echo "==> Existing Windows Terminal settings backed up."
     fi
-    # Windows Terminal derives the GUID of each auto-generated WSL profile from
-    # the distro name (UUIDv5, UTF-16LE, Terminal's generator namespace).
-    # Reproducing it lets the settings target the real generated profile, which
-    # keeps the distro's own icon and WT's WSL handling (Linux-style
-    # startingDirectory), whatever the distro is called.
-    WSL_PROFILE_GUID=$(python3 - "$WSL_DISTRO_NAME" <<'PY'
-import hashlib, sys, uuid
-ns = uuid.UUID('2bde4a90-d05f-401c-9492-e40884ead1d8').bytes
-h = bytearray(hashlib.sha1(ns + sys.argv[1].encode('utf-16-le')).digest()[:16])
-h[6] = (h[6] & 0x0f) | 0x50; h[8] = (h[8] & 0x3f) | 0x80
-print('{' + str(uuid.UUID(bytes=bytes(h))) + '}')
+    # Bind to the WSL profile Windows Terminal itself generated for this distro.
+    # Classic distros get one from WT's WslDistroGenerator; newer Ubuntu releases
+    # ship their own via a JSON fragment (different GUID/source). Guessing the
+    # GUID is therefore unreliable — read it from WT's state/settings instead.
+    # If nothing is found (WT never launched yet), fall back to an explicit
+    # wsl.exe profile so the tab always opens.
+    WSL_PROFILE_JSON=$(python3 - "$WT_SETTINGS_DIR" "$WSL_DISTRO_NAME" <<'PY'
+import json, os, re, sys
+wt, distro = sys.argv[1], sys.argv[2]
+def load(name):
+    try:
+        with open(os.path.join(wt, name), encoding='utf-8-sig') as fh:
+            return json.load(fh)
+    except Exception:
+        return {}
+generated = set(load('state.json').get('generatedProfiles', []))
+profiles = []
+for fn in ('settings.json', 'settings.json.before-dotfiles'):
+    profiles += load(fn).get('profiles', {}).get('list', [])
+ver = re.search(r'\d+\.\d+', distro)
+ver = ver.group(0) if ver else distro
+def score(p):
+    if not p.get('source'):
+        return 0
+    if p.get('source') == 'Windows.Terminal.Wsl' and p.get('name') == distro:
+        return 3
+    if p.get('guid') in generated and ver in p.get('name', ''):
+        return 2
+    if ver in p.get('name', '') and ('Wsl' in p.get('source', '') or 'Canonical' in p.get('source', '')):
+        return 1
+    return 0
+best = max(profiles, key=score, default=None)
+if best and score(best) > 0:
+    # WT resolves Linux-style startingDirectory only for WSL-source profiles.
+    print(json.dumps({"guid": best["guid"], "source": best["source"], "startingDirectory": "~/repos"}))
+else:
+    print(json.dumps({"guid": "{ddad2f1c-79f7-5b21-a2c2-0000c6c23ae0}",
+                      "commandline": "wsl.exe -d " + distro + " --cd ~/repos",
+                      "icon": "ms-appx:///ProfileIcons/{9acb9455-ca41-5af7-950f-6bca1bc9722f}.png"}))
 PY
 )
+    WSL_PROFILE_GUID=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["guid"])' "$WSL_PROFILE_JSON")
+    # Remaining keys (source, or commandline+icon) as pre-indented JSON lines.
+    WSL_PROFILE_EXTRA=$(python3 -c '
+import json,sys
+d=json.loads(sys.argv[1]); d.pop("guid")
+print("\n".join("                %s: %s," % (json.dumps(k), json.dumps(v)) for k,v in d.items()))' "$WSL_PROFILE_JSON")
+    echo "    Windows Terminal WSL profile: $WSL_PROFILE_JSON"
     cat > "$WT_SETTINGS_DIR/settings.json" << 'WTSETTINGS'
 {
     "$help": "https://aka.ms/terminal-documentation",
@@ -244,10 +279,9 @@ PY
             },
             {
                 "guid": "__WSL_PROFILE_GUID__",
+__WSL_PROFILE_EXTRA__
                 "hidden": false,
                 "name": "{{ env "WSL_DISTRO_NAME" }}",
-                "source": "Windows.Terminal.Wsl",
-                "startingDirectory": "~/repos",
                 "tabColor": "#FAB387"
             }
         ]
@@ -282,7 +316,13 @@ PY
     "themes": []
 }
 WTSETTINGS
-    sed -i "s/__WSL_PROFILE_GUID__/$WSL_PROFILE_GUID/g" "$WT_SETTINGS_DIR/settings.json"
+    python3 - "$WT_SETTINGS_DIR/settings.json" "$WSL_PROFILE_GUID" "$WSL_PROFILE_EXTRA" <<'PY'
+import json, sys
+path, guid, extra = sys.argv[1:4]
+s = open(path, encoding='utf-8').read().replace('__WSL_PROFILE_GUID__', guid).replace('__WSL_PROFILE_EXTRA__', extra)
+json.loads(s)  # fail loudly rather than hand WT a broken file
+open(path, 'w', encoding='utf-8').write(s)
+PY
     echo "    Windows Terminal settings written."
 else
     echo "==> Windows Terminal not found, skipping settings."
