@@ -61,23 +61,29 @@ if [ ! -d "$WIN_FONT_DIR" ] || ! ls "$WIN_FONT_DIR"/JetBrainsMono*.ttf &>/dev/nu
         cp /tmp/jetbrains-mono-nf-win/*.ttf "$WIN_FONT_DIR/" 2>/dev/null || true
         rm -rf /tmp/jetbrains-mono-nf-win /tmp/jetbrains-mono-nf-win.zip
 
-        # Register fonts in Windows registry
-        echo "    Registering fonts in Windows registry..."
-        for font_file in "$WIN_FONT_DIR"/JetBrainsMono*.ttf; do
-            font_name=$(basename "$font_file")
-            display_name="${font_name%.ttf} (TrueType)"
-            win_path="$WIN_APPDATA\\Microsoft\\Windows\\Fonts\\$font_name"
-            # Use forward slashes for the registry path
-            powershell.exe -NoProfile -Command \
-                "New-ItemProperty -Path 'HKCU:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts' -Name '$display_name' -Value '$win_path' -PropertyType String -Force" \
-                2>/dev/null || true
-        done
         echo "    JetBrains Mono Nerd Font installed for Windows."
     else
         echo "    WARNING: Could not find JetBrains Mono Nerd Font download URL."
     fi
 else
-    echo "==> JetBrains Mono Nerd Font for Windows already installed, skipping."
+    echo "==> JetBrains Mono Nerd Font for Windows already present, skipping download."
+fi
+
+# Register (or re-register) every font file in one PowerShell call. Runs every
+# time: it is idempotent, cheap, and repairs bad entries — an earlier version
+# wrote /mnt/c/... paths into the registry, which Windows cannot resolve, so
+# Windows Terminal reported "Unable to find the following fonts".
+if ls "$WIN_FONT_DIR"/JetBrainsMono*.ttf &>/dev/null; then
+    echo "    Registering fonts in Windows registry..."
+    WIN_FONT_DIR_W=$(wslpath -w "$WIN_FONT_DIR")
+    powershell.exe -NoProfile -Command "
+        \$key = 'HKCU:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts'
+        Get-ChildItem -LiteralPath '$WIN_FONT_DIR_W' -Filter 'JetBrainsMono*.ttf' | ForEach-Object {
+            New-ItemProperty -Path \$key -Name (\$_.BaseName + ' (TrueType)') -Value \$_.FullName -PropertyType String -Force | Out-Null
+        }
+        (Get-ChildItem -LiteralPath '$WIN_FONT_DIR_W' -Filter 'JetBrainsMono*.ttf').Count
+    " 2>/dev/null | tr -d '\r' | sed 's/^/    registered fonts: /'
+    echo "    (sign out/in or restart Windows Terminal if a font still shows as missing)"
 fi
 
 # --- Windows Terminal settings.json ---
@@ -215,9 +221,10 @@ if [ -d "$WIN_APPDATA/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe" ]; then
             {
                 "guid": "{17bf3de4-5353-5709-bcf9-835bd952a95e}",
                 "hidden": false,
-                "name": "Ubuntu-22.04",
-                "source": "Windows.Terminal.Wsl",
-                "startingDirectory": "//wsl.localhost/Ubuntu-22.04/home/sabossedgh/repos",
+                "name": "{{ env "WSL_DISTRO_NAME" }}",
+                "commandline": "wsl.exe -d {{ env "WSL_DISTRO_NAME" }} --cd ~/repos",
+                "icon": "ms-appx:///ProfileIcons/{9acb9455-ca41-5af7-950f-6bca1bc9722f}.png",
+                "startingDirectory": "//wsl.localhost/{{ env "WSL_DISTRO_NAME" }}/home/{{ .chezmoi.username }}/repos",
                 "tabColor": "#FAB387"
             }
         ]
@@ -266,7 +273,7 @@ if [ -f "$PS_PROFILE_DIR/Microsoft.PowerShell_profile.ps1" ]; then
 fi
 cat > "$PS_PROFILE_DIR/Microsoft.PowerShell_profile.ps1" << 'PSPROFILE'
 # Start in repos directory
-Set-Location "\\wsl.localhost\Ubuntu-22.04\home\sabossedgh\repos"
+Set-Location "\\wsl.localhost\{{ env "WSL_DISTRO_NAME" }}\home\{{ .chezmoi.username }}\repos"
 
 # Oh My Posh prompt
 & "$env:LOCALAPPDATA\Programs\oh-my-posh\bin\oh-my-posh.exe" init pwsh --config "$env:LOCALAPPDATA\Programs\oh-my-posh\themes\catppuccin_mocha.omp.json" | Invoke-Expression
