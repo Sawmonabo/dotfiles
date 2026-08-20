@@ -4,7 +4,7 @@ sourceDir = "{{ .chezmoi.homeDir }}/dev/dotfiles"
     name = "{{ promptStringOnce . "name" "Git user name" }}"
     email = "{{ promptStringOnce . "email" "Git default email (all repos unless overridden)" }}"
     personal_email = "{{ promptStringOnce . "personal_email" "Git personal email (for ~/dev/ repos)" }}"
-    editor = "{{ promptStringOnce . "editor" "Preferred editor (cursor/code/vim)" }}"
+    editor = "{{ promptChoiceOnce . "editor" "Preferred editor" (list "code" "vim") "code" }}"
     versions_mode = "{{ promptChoiceOnce . "versions_mode" "Install pinned or latest tool versions" (list "pinned" "latest") }}"
     # Secrets: stored only in the local chezmoi.toml on this machine, never in the repo
     jira_api_token = "{{ promptStringOnce . "jira_api_token" "Jira API token (for Codex MCP; stored locally only)" }}"

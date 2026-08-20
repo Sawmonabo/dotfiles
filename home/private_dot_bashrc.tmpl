@@ -79,19 +79,13 @@ eval "$(oh-my-posh init bash --config ~/.config/oh-my-posh/catppuccin_mocha.omp.
 # --- Editor ---
 export EDITOR="{{ .editor }} --wait"
 
-# --- Smart IDE launcher ---
-# Detects current IDE and routes `code` accordingly.
-# If running inside Cursor's terminal, `code <path>` opens in Cursor instead of VS Code.
+# --- VS Code launcher with workspace routing ---
 code() {
     local ide_launcher="code"
     local last_arg
     local routed_target
     local target_path
     local -a prefix_args
-
-    if [[ -n "$VSCODE_GIT_ASKPASS_NODE" && "$VSCODE_GIT_ASKPASS_NODE" == *".cursor-server"* ]]; then
-        ide_launcher="cursor"
-    fi
 
     if [[ -n "$CODE_WORKSPACE_ROUTER_DISABLE" ]]; then
         command "$ide_launcher" "$@"

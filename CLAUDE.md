@@ -29,7 +29,6 @@ Within `home/`, chezmoi templates deploy to `~` on each platform using chezmoi's
 | `home/.chezmoiscripts/darwin/run_onchange_after_10-terminal-font.sh.tmpl` | (run script) | Instructions for Terminal.app font setup (macOS only) |
 | `home/.chezmoiscripts/wsl/run_once_before_00-packages-windows.sh.tmpl` | (run script) | WSL only; installs oh-my-posh.exe, fonts, Windows Terminal settings, PowerShell profile |
 | `home/.chezmoiscripts/wsl/run_onchange_after_10-deploy-windows-configs.sh.tmpl` | (run script) | WSL only; merges `.wslconfig` and deploys RestartWSL scripts to Windows |
-| `home/.chezmoiscripts/wsl/run_onchange_after_20-cursor-terminal-font.sh.tmpl` | (run script) | Configures Cursor terminal to use Nerd Font (WSL only) |
 | `home/.chezmoitemplates/nvm-load.sh` | (template fragment) | Shared NVM_DIR export + `source nvm.sh` guard block, included via `{{ template "nvm-load.sh" }}` |
 | `home/.chezmoidata/versions.toml` | (data) | Pinned tool/runtime versions used by `versions_mode=pinned` |
 | `home/.chezmoidata/packages.toml` | (data) | Recorded apt package names and VS Code extension IDs (manual reference, not scripted) |
@@ -41,7 +40,7 @@ Defined in `home/.chezmoi.toml.tmpl` via `promptStringOnce`/`promptChoiceOnce`:
 - `.name` — Git user name
 - `.email` — Git default email (all repos unless overridden)
 - `.personal_email` — Git personal email (for `~/dev/` repos)
-- `.editor` — Preferred editor (`cursor`/`code`/`vim`)
+- `.editor` — Preferred editor (`code`/`vim`, default `code`)
 - `.versions_mode` — `pinned` or `latest` tool versions
 - `.wsl_memory` — WSL memory limit, e.g. `8GB` (WSL only)
 - `.restart_wsl_path` — RestartWSL scripts location, relative to Windows home or full path (WSL only)
