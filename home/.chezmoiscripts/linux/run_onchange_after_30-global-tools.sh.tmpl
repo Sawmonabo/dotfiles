@@ -45,7 +45,9 @@ else
 fi
 
 # --- cargo tools ---
+# (an empty cargo_tools table must still render a valid if-body, hence the no-op)
 if command -v cargo &>/dev/null; then
+    :
 {{- range $pkg, $ver := .cargo_tools }}
 {{- if eq $mode "pinned" }}
     cargo install --locked "{{ $pkg }}" --version "{{ $ver }}" || failed+=("cargo:{{ $pkg }}")
