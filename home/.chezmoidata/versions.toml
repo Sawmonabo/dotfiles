@@ -24,8 +24,10 @@ yarn = "1.22.22"
 "pyclean" = "3.4.0"
 "specify-cli" = "0.0.22"
 
+# cargo install <crate> --version <ver>. bat is NOT listed here: the Linux
+# bootstrap script installs it from apt (cargo only as a fallback), so listing
+# it would compile it a second time on every apply.
 [cargo_tools]
-bat = "0.26.1"
 
 # go install <module>@<version>
 [go_tools]
