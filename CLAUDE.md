@@ -28,7 +28,8 @@ Within `home/`, chezmoi templates deploy to `~` on each platform using chezmoi's
 | `home/.chezmoiscripts/darwin/run_once_before_00-packages.sh.tmpl` | (run script) | macOS bootstrap: Homebrew, bat, oh-my-posh, Nerd Font, gh |
 | `home/.chezmoiscripts/darwin/run_onchange_after_10-terminal-font.sh.tmpl` | (run script) | Instructions for Terminal.app font setup (macOS only) |
 | `home/.chezmoiscripts/wsl/run_once_before_00-packages-windows.sh.tmpl` | (run script) | WSL only; installs oh-my-posh.exe, fonts, Windows Terminal settings, PowerShell profile |
-| `home/.chezmoiscripts/wsl/run_onchange_after_10-deploy-windows-configs.sh.tmpl` | (run script) | WSL only; merges `.wslconfig` and deploys RestartWSL scripts to Windows |
+| `home/.chezmoiscripts/wsl/run_onchange_after_10-deploy-windows-configs.sh.tmpl` | (run script) | WSL only; merges `.wslconfig` (memory/processors/swap from chezmoi data, mirrored networking, vmIdleTimeout, autoMemoryReclaim, sparseVhd) and deploys RestartWSL scripts to Windows |
+| `home/.chezmoiscripts/wsl/run_onchange_after_20-sysctl.sh.tmpl` | (run script) | WSL only; writes `/etc/sysctl.d/99-dev.conf` (`vm.swappiness=10`); needs sudo, skips gracefully without a tty |
 | `home/.chezmoitemplates/nvm-load.sh` | (template fragment) | Shared NVM_DIR export + `source nvm.sh` guard block, included via `{{ template "nvm-load.sh" }}` |
 | `home/.chezmoidata/versions.toml` | (data) | Pinned tool/runtime versions used by `versions_mode=pinned` |
 | `home/.chezmoidata/packages.toml` | (data) | Recorded apt package names and VS Code extension IDs (manual reference, not scripted) |
@@ -42,7 +43,9 @@ Defined in `home/.chezmoi.toml.tmpl` via `promptStringOnce`/`promptChoiceOnce`:
 - `.personal_email` — Git personal email (for `~/dev/` repos)
 - `.editor` — Preferred editor (`code`/`vim`, default `code`)
 - `.versions_mode` — `pinned` or `latest` tool versions
-- `.wsl_memory` — WSL memory limit, e.g. `8GB` (WSL only)
+- `.wsl_memory` — WSL memory limit (WSL only). Default derived from the Windows host via `powershell.exe`: 75% of physical RAM
+- `.wsl_processors` — WSL vCPUs (WSL only). Default: 2/3 of the host's logical CPUs
+- `.wsl_swap` — WSL swap size (WSL only). Default: memory/6
 - `.restart_wsl_path` — RestartWSL scripts location, relative to Windows home or full path (WSL only)
 - `.jira_api_token` — Jira API token for Codex MCP (secret; stored only in the local `chezmoi.toml` on that machine, never in the repo)
 - `.gitlab_token` — GitLab token for Codex MCP (secret; same local-only storage)

@@ -141,6 +141,7 @@
   "plansDirectory": "./.claude/tmp/plans",
   "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
+  "theme": "dark",
   "verbose": true,
   "switchModelsOnFlag": true,
   "remoteControlAtStartup": false,

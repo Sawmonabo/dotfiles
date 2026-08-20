@@ -165,6 +165,11 @@ print("\n".join("                %s: %s," % (json.dumps(k), json.dumps(v)) for k
     "actions":
     [
         {
+            "command": { "action": "clearBuffer", "clear": "all" },
+            "id": "User.clearBufferAll",
+            "name": "Clear scrollback (free pane memory)"
+        },
+        {
             "command":
             {
                 "action": "switchToTab",
@@ -197,6 +202,7 @@ print("\n".join("                %s: %s," % (json.dumps(k), json.dumps(v)) for k
     "initialRows": 40,
     "keybindings":
     [
+        { "id": "User.clearBufferAll", "keys": "ctrl+shift+delete" },
         { "id": "Terminal.CopyToClipboard", "keys": "ctrl+c" },
         { "id": "Terminal.PasteFromClipboard", "keys": "ctrl+v" },
         { "id": "Terminal.OpenNewTab", "keys": "ctrl+shift+t" },
@@ -236,6 +242,7 @@ print("\n".join("                %s: %s," % (json.dumps(k), json.dumps(v)) for k
             "antialiasingMode": "cleartype",
             "autoMarkPrompts": true,
             "colorScheme": "Catppuccin Mocha",
+            "historySize": 5000,
             "experimental.repositionCursorWithMouse": true,
             "font":
             {

@@ -120,6 +120,14 @@ code() {
 }
 
 alias create-spec='source /home/sabossedgh/repos/ai-devtools/.venv/bin/activate && python /home/sabossedgh/repos/ai-devtools/.claude/tmp/sessions/2026-02-10/artifacts/create_spec_only.py'
+# WSL: hand the VM's file cache back to Windows on demand. Linux keeps
+# everything it reads cached (shows up as vmmemWSL in Task Manager); this is
+# reclaimable and autoMemoryReclaim trims it when idle, but after big image
+# pulls / clones you may want it back immediately.
+if grep -qi microsoft /proc/version 2>/dev/null; then
+    alias wsl-drop-caches="sudo sh -c 'sync; echo 3 > /proc/sys/vm/drop_caches' && free -h"
+fi
+
 # WSL: route browser opens (bw login SSO/Duo, gh auth, xdg-open) to Windows.
 # Prefer Chrome directly: wslview needs the wslu package, which is not in the
 # Ubuntu 26.04 repos, and a BROWSER that does not resolve makes CLIs hang

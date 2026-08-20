@@ -1,0 +1,32 @@
+{{ if eq .chezmoi.os "linux" -}}
+{{ if (.chezmoi.kernel.osrelease | lower | contains "microsoft") -}}
+#!/bin/bash
+# Kernel tuning for a large-memory WSL VM. Re-runs whenever this file changes.
+#
+# vm.swappiness=10: with tens of GB assigned to the VM there is no reason to
+# page idle program memory out to make room for file cache; keep apps resident
+# and swap only under real pressure (the kernel default of 60 is eager).
+# Needs sudo; when no tty/sudo credential is available it prints the manual
+# step and exits 0 so the rest of `chezmoi apply` is not blocked.
+set -euo pipefail
+
+CONF=/etc/sysctl.d/99-dev.conf
+WANT='vm.swappiness=10'
+
+if [[ -f $CONF ]] && grep -qx "$WANT" "$CONF"; then
+    echo "==> sysctl: $CONF already up to date."
+    exit 0
+fi
+
+if ! sudo -n true 2>/dev/null && [[ ! -t 0 ]]; then
+    echo "==> sysctl: sudo needs a password and there is no terminal — skipped."
+    echo "    Apply manually:  echo '$WANT' | sudo tee $CONF && sudo sysctl -p $CONF"
+    exit 0
+fi
+
+echo "==> sysctl: writing $CONF ($WANT)"
+printf '# managed by dotfiles (run_onchange_after_20-sysctl)\n%s\n' "$WANT" | sudo tee "$CONF" >/dev/null
+sudo sysctl -q -p "$CONF"
+echo "    vm.swappiness is now $(sysctl -n vm.swappiness)"
+{{ end -}}
+{{ end -}}

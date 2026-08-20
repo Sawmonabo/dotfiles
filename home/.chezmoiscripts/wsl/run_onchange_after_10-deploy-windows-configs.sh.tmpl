@@ -12,6 +12,8 @@
 set -euo pipefail
 
 WSL_MEMORY="{{ .wsl_memory }}"
+WSL_PROCESSORS="{{ .wsl_processors }}"
+WSL_SWAP="{{ .wsl_swap }}"
 RESTART_WSL_PATH="{{ .restart_wsl_path }}"
 
 echo "==> Deploying WSL Windows configs..."
@@ -79,9 +81,10 @@ WSLCONFIG="$WIN_HOME/.wslconfig"
 
 MANAGED_KEYS=(
     "wsl2|memory|$WSL_MEMORY"
-    "wsl2|swap|4GB"
-    "wsl2|processors|6"
+    "wsl2|swap|$WSL_SWAP"
+    "wsl2|processors|$WSL_PROCESSORS"
     "wsl2|networkingMode|mirrored"
+    "wsl2|vmIdleTimeout|300000"
     "experimental|autoMemoryReclaim|gradual"
     "experimental|sparseVhd|true"
 )
@@ -91,8 +94,11 @@ if [[ ! -f "$WSLCONFIG" ]]; then
     cat > "$WSLCONFIG" << EOF
 [wsl2]
 memory=$WSL_MEMORY
-swap=4GB
-processors=6
+swap=$WSL_SWAP
+processors=$WSL_PROCESSORS
+# Keep the VM alive 5 min after the last window closes (default 60 s) so a
+# brief close does not cost a cold start.
+vmIdleTimeout=300000
 # Mirrored networking: WSL shares the host's interfaces and localhost in both
 # directions, so Windows tools (Compass, Studio 3T, browsers) reach services
 # bound inside WSL/podman reliably. NAT's localhost-forwarding shim misses
