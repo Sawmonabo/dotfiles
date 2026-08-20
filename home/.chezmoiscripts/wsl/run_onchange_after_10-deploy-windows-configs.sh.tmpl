@@ -137,6 +137,9 @@ else
             APPLY=true
         elif [[ -t 0 ]]; then
             read -rp "    Merge changes into .wslconfig? [y/N] " response
+            # Strip stray terminal escape sequences (arrow keys etc.) so an
+            # accidental keypress before the 'y' does not silently skip.
+            response=$(printf '%s' "$response" | sed -E 's/\x1b\[[0-9;]*[A-Za-z~]//g')
             [[ "$response" =~ ^[Yy]$ ]] && APPLY=true
         else
             echo "    Non-interactive — skipping. Use CHEZMOI_FORCE=1 to apply."
