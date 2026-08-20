@@ -106,6 +106,19 @@ if [ -d "$WIN_APPDATA/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe" ]; then
         cp -a "$WT_SETTINGS_DIR/settings.json" "$WT_SETTINGS_DIR/settings.json.before-dotfiles-$(date +%Y%m%d-%H%M%S)"
         echo "==> Existing Windows Terminal settings backed up."
     fi
+    # Windows Terminal derives the GUID of each auto-generated WSL profile from
+    # the distro name (UUIDv5, UTF-16LE, Terminal's generator namespace).
+    # Reproducing it lets the settings target the real generated profile, which
+    # keeps the distro's own icon and WT's WSL handling (Linux-style
+    # startingDirectory), whatever the distro is called.
+    WSL_PROFILE_GUID=$(python3 - "$WSL_DISTRO_NAME" <<'PY'
+import hashlib, sys, uuid
+ns = uuid.UUID('2bde4a90-d05f-401c-9492-e40884ead1d8').bytes
+h = bytearray(hashlib.sha1(ns + sys.argv[1].encode('utf-16-le')).digest()[:16])
+h[6] = (h[6] & 0x0f) | 0x50; h[8] = (h[8] & 0x3f) | 0x80
+print('{' + str(uuid.UUID(bytes=bytes(h))) + '}')
+PY
+)
     cat > "$WT_SETTINGS_DIR/settings.json" << 'WTSETTINGS'
 {
     "$help": "https://aka.ms/terminal-documentation",
@@ -139,7 +152,7 @@ if [ -d "$WIN_APPDATA/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe" ]; then
     ],
     "copyFormatting": "none",
     "copyOnSelect": true,
-    "defaultProfile": "{17bf3de4-5353-5709-bcf9-835bd952a95e}",
+    "defaultProfile": "__WSL_PROFILE_GUID__",
     "firstWindowPreference": "persistedWindowLayout",
     "initialCols": 120,
     "initialRows": 40,
@@ -230,11 +243,11 @@ if [ -d "$WIN_APPDATA/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe" ]; then
                 "tabColor": "#74C7EC"
             },
             {
-                "guid": "{17bf3de4-5353-5709-bcf9-835bd952a95e}",
+                "guid": "__WSL_PROFILE_GUID__",
                 "hidden": false,
                 "name": "{{ env "WSL_DISTRO_NAME" }}",
-                "commandline": "wsl.exe -d {{ env "WSL_DISTRO_NAME" }} --cd ~/repos",
-                "icon": "ms-appx:///ProfileIcons/{9acb9455-ca41-5af7-950f-6bca1bc9722f}.png",
+                "source": "Windows.Terminal.Wsl",
+                "startingDirectory": "~/repos",
                 "tabColor": "#FAB387"
             }
         ]
@@ -269,6 +282,7 @@ if [ -d "$WIN_APPDATA/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe" ]; then
     "themes": []
 }
 WTSETTINGS
+    sed -i "s/__WSL_PROFILE_GUID__/$WSL_PROFILE_GUID/g" "$WT_SETTINGS_DIR/settings.json"
     echo "    Windows Terminal settings written."
 else
     echo "==> Windows Terminal not found, skipping settings."
