@@ -82,7 +82,7 @@ MANAGED_KEYS=(
     "wsl2|swap|4GB"
     "wsl2|processors|6"
     "wsl2|pageReporting|true"
-    "wsl2|autoMemoryReclaim|gradual"
+    "experimental|autoMemoryReclaim|gradual"
     "experimental|sparseVhd|true"
 )
 
@@ -94,9 +94,12 @@ memory=$WSL_MEMORY
 swap=4GB
 processors=6
 pageReporting=true
-autoMemoryReclaim=gradual
 
 [experimental]
+# Automatically reclaim cached memory (the WSL VM otherwise holds page cache
+# until Windows is starved; this is what made /mnt/c writes fail under load)
+autoMemoryReclaim=gradual
+# Sparse VHD (the ext4.vhdx shrinks when files are deleted instead of only growing)
 sparseVhd=true
 EOF
     echo "    Created $WSLCONFIG"
