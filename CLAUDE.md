@@ -20,7 +20,7 @@ Within `home/`, chezmoi templates deploy to `~` on each platform using chezmoi's
 | `home/dot_claude/` | `~/.claude/` | `CLAUDE.md` and `private_settings.json` |
 | `home/dot_codex/` | `~/.codex/` | `AGENTS.md`, `private_config.toml.tmpl`, `private_hooks.json` |
 | `home/dot_config/` | `~/.config/` | `oh-my-posh/catppuccin_mocha.omp.json` (theme, all platforms) and `tmux/tmux.conf` |
-| `home/.chezmoiscripts/linux/run_once_before_00-packages.sh.tmpl` | (run script) | Linux/WSL bootstrap: build-essential, bat, oh-my-posh + themes, Nerd Font, gh (GitHub apt/dnf repo), tmux, TPM |
+| `home/.chezmoiscripts/linux/run_once_before_00-packages.sh.tmpl` | (run script) | Linux/WSL bootstrap: build-essential, bat, oh-my-posh + themes, Nerd Font, gh (upstream static binary to ~/.local/bin, no sudo), tmux, TPM |
 | `home/.chezmoiscripts/linux/run_once_after_10-runtime-managers.sh.tmpl` | (run script) | Installs nvm, uv, rustup, bun, Go managers |
 | `home/.chezmoiscripts/linux/run_onchange_after_20-runtimes.sh.tmpl` | (run script) | Pinned Node versions + default alias, uv Pythons, Rust toolchain; re-runs when pins change |
 | `home/.chezmoiscripts/linux/run_onchange_after_30-global-tools.sh.tmpl` | (run script) | codex, claude, corepack pnpm/yarn, uv tools, cargo tools, go tools, podman |

@@ -91,41 +91,33 @@ else
 fi
 
 # --- gh (GitHub CLI) ---
-# From GitHub's own package repo, not the distro's: Ubuntu universe lags a
-# year+ behind (26.04 ships 2.46 vs upstream 2.9x) and gh auth/extension
-# features move fast. Steps follow github.com/cli/cli/blob/trunk/docs/install_linux.md.
-# If a distro-packaged gh is already present it is left alone but the repo is
-# still added so `apt upgrade` moves it to the upstream build.
-if command -v apt-get &>/dev/null; then
-    if [ ! -f /etc/apt/sources.list.d/github-cli.list ]; then
-        echo "==> Adding GitHub CLI apt repository..."
-        sudo mkdir -p -m 755 /etc/apt/keyrings
-        curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
-            | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg >/dev/null
-        sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
-        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
-            | sudo tee /etc/apt/sources.list.d/github-cli.list >/dev/null
-        sudo apt-get update -qq
-    fi
-    if ! command -v gh &>/dev/null; then
-        echo "==> Installing gh via apt (cli.github.com)..."
-        sudo apt-get install -y -qq gh
-        echo "    gh installed: $(gh --version | head -1)"
+# Per-user install of the upstream static binary into ~/.local/bin: no sudo,
+# no distro repo (Ubuntu universe lags a year+: 26.04 ships 2.46 vs 2.9x).
+# ~/.local/bin precedes /usr/bin in PATH, so this shadows any apt-installed gh.
+if ! command -v gh &>/dev/null || [[ "$(command -v gh)" != "$HOME/.local/bin/gh" ]]; then
+    echo "==> Installing gh (GitHub CLI) to ~/.local/bin..."
+    case "$(uname -m)" in
+        x86_64) GH_ARCH=amd64 ;;
+        aarch64|arm64) GH_ARCH=arm64 ;;
+        *) GH_ARCH="" ;;
+    esac
+    GH_TAG=$(curl -fsSL https://api.github.com/repos/cli/cli/releases/latest \
+        | grep -o '"tag_name": *"v[^"]*"' | cut -d'"' -f4)
+    if [ -n "$GH_ARCH" ] && [ -n "$GH_TAG" ]; then
+        GH_VER=${GH_TAG#v}
+        GH_TMP=$(mktemp -d)
+        curl -fsSL "https://github.com/cli/cli/releases/download/${GH_TAG}/gh_${GH_VER}_linux_${GH_ARCH}.tar.gz" \
+            | tar -xz -C "$GH_TMP"
+        mkdir -p "$HOME/.local/bin" "$HOME/.local/share/man/man1"
+        install -m 755 "$GH_TMP/gh_${GH_VER}_linux_${GH_ARCH}/bin/gh" "$HOME/.local/bin/gh"
+        cp "$GH_TMP/gh_${GH_VER}_linux_${GH_ARCH}/share/man/man1/"*.1 "$HOME/.local/share/man/man1/" 2>/dev/null || true
+        rm -rf "$GH_TMP"
+        echo "    gh installed: $("$HOME/.local/bin/gh" --version | head -1)"
     else
-        echo "==> gh already installed ($(gh --version | head -1)), skipping."
-    fi
-elif command -v dnf &>/dev/null; then
-    if ! command -v gh &>/dev/null; then
-        echo "==> Installing gh via dnf (cli.github.com)..."
-        sudo dnf install -y 'dnf-command(config-manager)'
-        sudo dnf config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo
-        sudo dnf install -y gh --repo gh-cli
-        echo "    gh installed."
-    else
-        echo "==> gh already installed, skipping."
+        echo "    WARNING: could not determine gh release/arch; install manually from https://cli.github.com"
     fi
 else
-    echo "    WARNING: Could not detect package manager. Install gh manually: https://cli.github.com"
+    echo "==> gh already installed ($(gh --version | head -1)), skipping."
 fi
 
 # --- tmux ---

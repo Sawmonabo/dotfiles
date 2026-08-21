@@ -125,7 +125,7 @@ alias create-spec='source /home/sabossedgh/repos/ai-devtools/.venv/bin/activate 
 # reclaimable and autoMemoryReclaim trims it when idle, but after big image
 # pulls / clones you may want it back immediately.
 if grep -qi microsoft /proc/version 2>/dev/null; then
-    alias wsl-drop-caches="sudo sh -c 'sync; echo 3 > /proc/sys/vm/drop_caches' && free -h"
+    alias clear-cache="sudo sh -c 'sync; echo 3 > /proc/sys/vm/drop_caches' && free -h"
 fi
 
 # WSL: route browser opens (bw login SSO/Duo, gh auth, xdg-open) to Windows
