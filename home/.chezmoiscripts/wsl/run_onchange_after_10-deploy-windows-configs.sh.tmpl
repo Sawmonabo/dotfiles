@@ -259,6 +259,99 @@ SETUPSCRIPT
     echo "    NOTE: Run setup-task.ps1 as Administrator once to create the scheduled task."
 fi
 
+
+# ---------- Windows-side ripgrep ----------
+# VS Code's Todo-Tree extension shells out to ripgrep. Its bundled copy lives under
+# a version-hash directory that changes on every VS Code update, so pointing the
+# extension at it guarantees breakage. Instead keep a stable rg.exe of our own and
+# point the setting there. (winget would also work, but its source cache needs an
+# elevated `winget source reset` to repair when it corrupts.)
+RG_DIR="$WIN_HOME/bin"
+RG_EXE="$RG_DIR/rg.exe"
+RG_VERSION="15.2.0"
+
+if [[ ! -f "$RG_EXE" ]]; then
+    echo "==> Installing ripgrep $RG_VERSION for Windows..."
+    mkdir -p "$RG_DIR"
+    RG_TMP=$(mktemp -d)
+    RG_URL="https://github.com/BurntSushi/ripgrep/releases/download/${RG_VERSION}/ripgrep-${RG_VERSION}-x86_64-pc-windows-msvc.zip"
+    if curl -fsSL -o "$RG_TMP/rg.zip" "$RG_URL" && unzip -o -q "$RG_TMP/rg.zip" -d "$RG_TMP"; then
+        find "$RG_TMP" -name rg.exe -exec cp {} "$RG_EXE" \;
+        echo "    Installed $RG_EXE"
+    else
+        echo "    WARNING: download failed; skipping."
+    fi
+    rm -rf "$RG_TMP"
+else
+    echo "==> Windows ripgrep already present."
+fi
+
+# Put $WIN_HOME/bin on the Windows *user* PATH (no admin needed). Idempotent.
+if [[ -f "$RG_EXE" ]]; then
+    powershell.exe -NoProfile -Command '
+        $dir = "$env:USERPROFILE\bin"
+        $cur = [Environment]::GetEnvironmentVariable("Path","User")
+        if (($cur -split ";") -notcontains $dir) {
+            [Environment]::SetEnvironmentVariable("Path", $cur.TrimEnd(";") + ";" + $dir, "User")
+            Write-Output "    Added $dir to the Windows user PATH"
+        } else { Write-Output "    Windows user PATH already contains $dir" }
+    ' 2>/dev/null | tr -d '\r' || true
+fi
+
+# ---------- VS Code (Windows host) todo-tree.ripgrep ----------
+# Merge a single key rather than managing settings.json outright: VS Code and its
+# extensions rewrite this file constantly, so a chezmoi-owned copy would fight it
+# on every apply.
+VSCODE_SETTINGS="$WIN_HOME/AppData/Roaming/Code/User/settings.json"
+if [[ -f "$VSCODE_SETTINGS" && -f "$RG_EXE" ]]; then
+    if grep -q 'todo-tree.ripgrep' "$VSCODE_SETTINGS"; then
+        echo "==> VS Code todo-tree.ripgrep already set."
+    else
+        echo "==> Adding todo-tree.ripgrep to Windows VS Code settings..."
+        cp "$VSCODE_SETTINGS" "${VSCODE_SETTINGS}.chezmoi.bak"
+        python3 - "$VSCODE_SETTINGS" <<'PYEOF'
+import sys
+p = sys.argv[1]
+s = open(p, encoding='utf-8-sig').read()
+i = s.rstrip().rfind('}')
+head = s[:i].rstrip()
+if not head.endswith((',', '{')):
+    head += ','
+open(p, 'w', encoding='utf-8').write(
+    head + '\n    "todo-tree.ripgrep": "%USERPROFILE%\\\\bin\\\\rg.exe"\n}\n')
+PYEOF
+        # %USERPROFILE% is not expanded by VS Code - substitute the real path.
+        WIN_HOME_WIN=$(wslpath -w "$WIN_HOME" 2>/dev/null | tr -d '\r')
+        python3 - "$VSCODE_SETTINGS" "$WIN_HOME_WIN" <<'PYEOF'
+import sys
+p, home = sys.argv[1], sys.argv[2]
+s = open(p, encoding='utf-8').read()
+open(p, 'w', encoding='utf-8').write(
+    s.replace('%USERPROFILE%', home.replace('\\', '\\\\')))
+PYEOF
+        echo "    Set (reload the VS Code window to pick it up)."
+    fi
+fi
+
+# ---------- Notepad++ Dracula themes ----------
+# Never captured by migrate.sh's Windows profile sync, so re-fetch from upstream.
+# Installing the theme files only - selecting one is a GUI action.
+NPP_THEMES="$WIN_HOME/AppData/Roaming/Notepad++/themes"
+if [[ -d "$WIN_HOME/AppData/Roaming/Notepad++" ]] || [[ -d "/mnt/c/Program Files/Notepad++" ]]; then
+    mkdir -p "$NPP_THEMES"
+    for theme in Dracula Alucard; do
+        if [[ ! -f "$NPP_THEMES/$theme.xml" ]]; then
+            if curl -fsSL -o "$NPP_THEMES/$theme.xml" \
+                "https://raw.githubusercontent.com/dracula/notepad-plus-plus/master/generated/$theme.xml"; then
+                echo "==> Installed Notepad++ theme: $theme"
+            else
+                rm -f "$NPP_THEMES/$theme.xml"
+                echo "    WARNING: could not fetch Notepad++ theme $theme"
+            fi
+        fi
+    done
+fi
+
 echo "==> Done."
 {{ end -}}
 {{ end -}}
