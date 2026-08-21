@@ -128,14 +128,13 @@ if grep -qi microsoft /proc/version 2>/dev/null; then
     alias wsl-drop-caches="sudo sh -c 'sync; echo 3 > /proc/sys/vm/drop_caches' && free -h"
 fi
 
-# WSL: route browser opens (bw login SSO/Duo, gh auth, xdg-open) to Windows.
-# Prefer Chrome directly: wslview needs the wslu package, which is not in the
-# Ubuntu 26.04 repos, and a BROWSER that does not resolve makes CLIs hang
-# silently waiting for a callback. Fall back to wslview where it exists.
-if [ -x "/mnt/c/Program Files/Google/Chrome/Application/chrome.exe" ]; then
-    export BROWSER="/mnt/c/Program Files/Google/Chrome/Application/chrome.exe"
-elif command -v wslview >/dev/null 2>&1; then
-    export BROWSER=wslview
+# WSL: route browser opens (bw login SSO/Duo, gh auth, xdg-open) to Windows
+# via ~/.local/bin/win-browser (Chrome -> wslview -> Windows default). A
+# wrapper rather than chrome.exe directly because some tools (gh) split
+# $BROWSER on spaces, and wslview alone is unavailable on Ubuntu 26.04 —
+# an unresolvable BROWSER makes CLIs hang silently waiting for a callback.
+if [ -x "$HOME/.local/bin/win-browser" ]; then
+    export BROWSER="$HOME/.local/bin/win-browser"
 fi
 
 # Added by remote-dev-workstation install

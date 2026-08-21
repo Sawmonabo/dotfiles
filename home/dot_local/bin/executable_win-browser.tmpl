@@ -1,0 +1,17 @@
+{{ if (.chezmoi.kernel.osrelease | lower | contains "microsoft") -}}
+#!/bin/bash
+# Open a URL in a Windows browser from WSL. Exists so $BROWSER can be a single
+# space-free path: tools like gh split $BROWSER on whitespace, which breaks
+# "/mnt/c/Program Files/.../chrome.exe" into "/mnt/c/Program".
+# Prefers Chrome, then wslview (wslu), then the Windows default handler.
+set -euo pipefail
+url=${1:?usage: win-browser <url>}
+chrome="/mnt/c/Program Files/Google/Chrome/Application/chrome.exe"
+if [[ -x $chrome ]]; then
+    exec "$chrome" "$url"
+elif command -v wslview >/dev/null 2>&1; then
+    exec wslview "$url"
+else
+    exec cmd.exe /c start "" "$url"
+fi
+{{ end -}}
