@@ -1,0 +1,653 @@
+#!/usr/bin/env python3
+"""claude-costs — per-project, per-model cost accounting for Claude Code.
+
+Reads the session transcripts under ~/.claude/projects/**/*.jsonl and totals the
+real per-response `usage` blocks. This is deliberately NOT the `lastCost` counter
+in ~/.claude.json: that counter is a lossy summary (it under-reports output and
+cache-read tokens several-fold, and 22 of 37 projects have counters with no
+surviving transcripts). The transcripts are the detailed record.
+
+Run `claude-costs help` for usage.
+Tab-completion: ~/.local/share/bash-completion/completions/claude-costs
+"""
+from __future__ import annotations
+
+import gzip
+import json
+import os
+import sys
+import time
+from collections import defaultdict
+from pathlib import Path
+
+HOME = Path.home()
+PROJECTS = Path(os.environ.get("CLAUDE_COSTS_PROJECTS", HOME / ".claude" / "projects"))
+CACHE = Path(os.environ.get("CLAUDE_COSTS_CACHE", HOME / ".cache" / "claude-costs"))
+RATES_FILE = Path(
+    os.environ.get("CLAUDE_COSTS_RATES", HOME / ".config" / "claude-costs" / "rates.json")
+)
+
+# Default scope: only projects living under these roots. `--all` lifts it.
+DEFAULT_ROOTS = [HOME / "dev", HOME / "repos"]
+
+# USD per 1,000,000 tokens, matched by longest model-id prefix.
+# These are list prices and WILL drift — override per-model in RATES_FILE, or run
+# `claude-costs calibrate` to solve them from Claude Code's own recorded costs.
+DEFAULT_RATES = {
+    "claude-opus":   {"input":  5.00, "output": 25.00, "cache_write":  6.25, "cache_read": 0.50},
+    "claude-sonnet": {"input":  3.00, "output": 15.00, "cache_write":  3.75, "cache_read": 0.30},
+    "claude-haiku":  {"input":  1.00, "output":  5.00, "cache_write":  1.25, "cache_read": 0.10},
+    "claude-fable":  {"input":  3.00, "output": 15.00, "cache_write":  3.75, "cache_read": 0.30},
+}
+
+FIELDS = ("input", "output", "cache_write", "cache_read")
+USAGE_KEYS = {
+    "input": "input_tokens",
+    "output": "output_tokens",
+    "cache_write": "cache_creation_input_tokens",
+    "cache_read": "cache_read_input_tokens",
+}
+
+BOLD, DIM, RED, GRN, YEL, CYN, OFF = (
+    ("\033[1m", "\033[2m", "\033[31m", "\033[32m", "\033[33m", "\033[36m", "\033[0m")
+    if sys.stdout.isatty() and os.environ.get("NO_COLOR") is None
+    else ("",) * 7
+)
+
+
+def die(msg: str) -> "NoReturn":  # noqa: F821
+    print(f"{RED}claude-costs: {msg}{OFF}", file=sys.stderr)
+    raise SystemExit(1)
+
+
+def info(msg: str) -> None:
+    print(f"{DIM}→ {msg}{OFF}", file=sys.stderr)
+
+
+# ---------------------------------------------------------------- rates
+
+
+def load_rates() -> dict:
+    rates = {k: dict(v) for k, v in DEFAULT_RATES.items()}
+    if RATES_FILE.is_file():
+        try:
+            user = json.loads(RATES_FILE.read_text())
+        except json.JSONDecodeError as e:
+            die(f"{RATES_FILE}: {e}")
+        for model, vals in user.items():
+            rates.setdefault(model, {})
+            rates[model].update(vals)
+    return rates
+
+
+def rate_for(model: str, rates: dict) -> dict | None:
+    """Longest-prefix match, so 'claude-opus-4-8' picks up a 'claude-opus-4-8'
+    override before falling back to the 'claude-opus' family rate."""
+    best = None
+    for prefix in rates:
+        if model.startswith(prefix) and (best is None or len(prefix) > len(best)):
+            best = prefix
+    return rates[best] if best else None
+
+
+def cost_of(counts: dict, model: str, rates: dict) -> tuple[float, bool]:
+    r = rate_for(model, rates)
+    if r is None:
+        return 0.0, False
+    return sum(counts[f] / 1_000_000 * r.get(f, 0.0) for f in FIELDS), True
+
+
+# ---------------------------------------------------------------- parsing
+
+
+def cache_path(f: Path) -> Path:
+    st = f.stat()
+    key = f"{f}|{st.st_mtime_ns}|{st.st_size}"
+    import hashlib
+
+    return CACHE / f"{hashlib.sha256(key.encode()).hexdigest()[:32]}.json.gz"
+
+
+def parse_file(f: Path) -> tuple[str | None, dict]:
+    """Return (project_cwd, {requestId: [model, in, out, cache_write, cache_read, ts]}).
+
+    Keying on requestId is what makes the numbers correct: Claude Code writes one
+    transcript record per *content block*, so a single API response appears 5-7
+    times with an identical message.id and identical usage. Summing rows naively
+    over-counts by roughly 3x.
+    """
+    responses: dict[str, list] = {}
+    cwds: dict[str, int] = defaultdict(int)
+    with f.open(errors="replace") as fh:
+        for line in fh:
+            if '"usage"' not in line:
+                if '"cwd"' in line:
+                    try:
+                        r = json.loads(line)
+                    except Exception:
+                        continue
+                    if r.get("cwd"):
+                        cwds[r["cwd"]] += 1
+                continue
+            try:
+                r = json.loads(line)
+            except Exception:
+                continue
+            if r.get("cwd"):
+                cwds[r["cwd"]] += 1
+            if r.get("type") != "assistant":
+                continue
+            m = r.get("message") or {}
+            u = m.get("usage")
+            if not isinstance(u, dict):
+                continue
+            model = m.get("model") or "unknown"
+            if model == "<synthetic>":
+                continue
+            rid = r.get("requestId") or m.get("id") or r.get("uuid")
+            if rid is None or rid in responses:
+                continue
+            responses[rid] = [
+                model,
+                u.get(USAGE_KEYS["input"]) or 0,
+                u.get(USAGE_KEYS["output"]) or 0,
+                u.get(USAGE_KEYS["cache_write"]) or 0,
+                u.get(USAGE_KEYS["cache_read"]) or 0,
+                r.get("timestamp") or "",
+            ]
+    cwd = max(cwds, key=cwds.get) if cwds else None
+    return cwd, responses
+
+
+def load_file(f: Path, use_cache: bool) -> tuple[str | None, dict]:
+    cp = cache_path(f)
+    if use_cache and cp.is_file():
+        try:
+            with gzip.open(cp, "rt") as fh:
+                d = json.load(fh)
+            return d["cwd"], d["responses"]
+        except Exception:
+            pass  # corrupt or stale-format cache entry: just re-parse
+    cwd, responses = parse_file(f)
+    if use_cache:
+        CACHE.mkdir(parents=True, exist_ok=True)
+        tmp = cp.with_suffix(".tmp")
+        with gzip.open(tmp, "wt") as fh:
+            json.dump({"cwd": cwd, "responses": responses}, fh)
+        tmp.replace(cp)
+    return cwd, responses
+
+
+def scan(opts) -> dict:
+    """{project_path: {model: {field: tokens, 'calls': n}}} — deduped globally."""
+    if not PROJECTS.is_dir():
+        die(f"no transcripts at {PROJECTS}")
+    files = sorted(PROJECTS.glob("*/*.jsonl"))
+    if not files:
+        die(f"no .jsonl transcripts under {PROJECTS}")
+
+    seen: set[str] = set()
+    out: dict[str, dict] = defaultdict(lambda: defaultdict(lambda: dict.fromkeys(FIELDS + ("calls",), 0)))
+    total_bytes = sum(f.stat().st_size for f in files)
+    done_bytes = 0
+    t0 = time.time()
+
+    for i, f in enumerate(files, 1):
+        if opts.progress:
+            pct = done_bytes / total_bytes * 100 if total_bytes else 100
+            print(
+                f"\r{DIM}  scanning {i}/{len(files)}  {pct:5.1f}%  {f.parent.name[:44]:<44}{OFF}",
+                end="",
+                file=sys.stderr,
+                flush=True,
+            )
+        cwd, responses = load_file(f, opts.cache)
+        done_bytes += f.stat().st_size
+        proj = cwd or f"?{f.parent.name}"
+        for rid, rec in responses.items():
+            if rid in seen:
+                continue
+            seen.add(rid)
+            model, i_, o_, cw_, cr_, ts = rec
+            if opts.since and ts and ts[:10] < opts.since:
+                continue
+            if opts.until and ts and ts[:10] > opts.until:
+                continue
+            bucket = out[proj][model]
+            bucket["input"] += i_
+            bucket["output"] += o_
+            bucket["cache_write"] += cw_
+            bucket["cache_read"] += cr_
+            bucket["calls"] += 1
+
+    if opts.progress:
+        print(
+            f"\r{DIM}  scanned {len(files)} files, {len(seen):,} API responses "
+            f"in {time.time() - t0:.1f}s{' ' * 30}{OFF}",
+            file=sys.stderr,
+        )
+    return out
+
+
+def in_scope(proj: str, opts) -> bool:
+    if opts.all:
+        return True
+    p = Path(proj)
+    return any(p == root or root in p.parents for root in DEFAULT_ROOTS)
+
+
+# ---------------------------------------------------------------- formatting
+
+
+def human(n: int) -> str:
+    for unit, div in (("B", 1e9), ("M", 1e6), ("K", 1e3)):
+        if n >= div:
+            return f"{n / div:,.1f}{unit}"
+    return str(n)
+
+
+def short(p: str) -> str:
+    return p.replace(str(HOME), "~")
+
+
+def collect(opts):
+    raw = scan(opts)
+    rates = load_rates()
+    projects = []
+    unpriced = set()
+    for proj, models in raw.items():
+        if not in_scope(proj, opts):
+            continue
+        rows, ptot = [], 0.0
+        for model, c in models.items():
+            cost, priced = cost_of(c, model, rates)
+            if not priced:
+                unpriced.add(model)
+            ptot += cost
+            rows.append({"model": model, "cost": cost, "priced": priced, **c})
+        rows.sort(key=lambda r: -r["cost"])
+        totals = {f: sum(r[f] for r in rows) for f in FIELDS + ("calls",)}
+        projects.append({"project": proj, "cost": ptot, "models": rows, **totals})
+    key = {"cost": lambda p: -p["cost"], "name": lambda p: p["project"],
+           "calls": lambda p: -p["calls"]}[opts.sort]
+    projects.sort(key=key)
+    # Truncation must not change the denominator: percentages and the grand total
+    # always describe every in-scope project, not just the ones displayed.
+    shown = projects[: opts.top] if opts.top else projects
+    return shown, unpriced, {"grand": sum(p["cost"] for p in projects), "n": len(projects)}
+
+
+def print_report(projects, unpriced, opts, scope):
+    if not projects:
+        print("no projects matched (try `claude-costs --all`)")
+        return
+    grand = scope["grand"]
+    by_model = defaultdict(lambda: dict.fromkeys(FIELDS + ("calls",), 0) | {"cost": 0.0})
+    hdr = (
+        f"{'model':<34} {'cost':>12} {'calls':>8} "
+        f"{'input':>9} {'output':>9} {'cache-w':>9} {'cache-r':>10}"
+    )
+
+    if opts.compact and not opts.models_only:
+        print(
+            f"\n  {DIM}{'project':<50} {'cost':>12} {'share':>7} {'calls':>8} {'cache-r':>10}{OFF}"
+        )
+    for p in projects:
+        share = p["cost"] / grand * 100 if grand else 0
+        if opts.models_only:
+            pass
+        elif opts.compact:
+            print(
+                f"  {short(p['project'])[:50]:<50} {GRN}${p['cost']:>11,.2f}{OFF} "
+                f"{share:>6.1f}% {p['calls']:>8,} {human(p['cache_read']):>10}"
+            )
+        else:
+            print(
+                f"\n{BOLD}{short(p['project'])}{OFF}  "
+                f"{GRN}${p['cost']:,.2f}{OFF}  {DIM}{share:.1f}% of total · "
+                f"{p['calls']:,} calls{OFF}"
+            )
+            print(f"  {DIM}{hdr}{OFF}")
+            for r in p["models"]:
+                flag = "" if r["priced"] else f" {YEL}(unpriced){OFF}"
+                print(
+                    f"  {r['model']:<34} ${r['cost']:>11,.2f} {r['calls']:>8,} "
+                    f"{human(r['input']):>9} {human(r['output']):>9} "
+                    f"{human(r['cache_write']):>9} {human(r['cache_read']):>10}{flag}"
+                )
+        for r in p["models"]:
+            b = by_model[r["model"]]
+            b["cost"] += r["cost"]
+            for f in FIELDS + ("calls",):
+                b[f] += r[f]
+
+    print(f"\n{BOLD}{'─' * 78}{OFF}")
+    print(f"{BOLD}TOTAL BY MODEL{OFF}")
+    print(f"  {DIM}{hdr}{OFF}")
+    for model, b in sorted(by_model.items(), key=lambda kv: -kv[1]["cost"]):
+        print(
+            f"  {model:<34} ${b['cost']:>11,.2f} {b['calls']:>8,} "
+            f"{human(b['input']):>9} {human(b['output']):>9} "
+            f"{human(b['cache_write']):>9} {human(b['cache_read']):>10}"
+        )
+    tt = {f: sum(p[f] for p in projects) for f in FIELDS + ("calls",)}
+    hidden = scope["n"] - len(projects)
+    print(f"{BOLD}{'─' * 78}{OFF}")
+    print(
+        f"  {BOLD}{'GRAND TOTAL':<34} ${grand:>11,.2f} {tt['calls']:>8,} "
+        f"{human(tt['input']):>9} {human(tt['output']):>9} "
+        f"{human(tt['cache_write']):>9} {human(tt['cache_read']):>10}{OFF}"
+    )
+    print(
+        f"  {DIM}{len(projects)} of {scope['n']} projects shown"
+        f"{f' ({hidden} hidden by --top, but counted above)' if hidden else ''}"
+        f"{'' if opts.all else ' · scope: ~/dev and ~/repos (--all for every project)'}{OFF}"
+    )
+    if unpriced:
+        print(
+            f"\n{YEL}warning:{OFF} no rate for {', '.join(sorted(unpriced))} — "
+            f"tokens counted, cost shown as 0. Add rates to {short(str(RATES_FILE))} "
+            f"or run `claude-costs calibrate`."
+        )
+    print(
+        f"{DIM}rates are list prices and may drift; `claude-costs rates` shows what was applied.{OFF}"
+    )
+
+
+# ---------------------------------------------------------------- commands
+
+
+def cmd_rates(opts):
+    rates = load_rates()
+    src = f"{short(str(RATES_FILE))} (overriding defaults)" if RATES_FILE.is_file() else "built-in defaults"
+    print(f"{BOLD}USD per 1M tokens{OFF}  {DIM}source: {src}{OFF}\n")
+    print(f"  {DIM}{'model prefix':<30} {'input':>10} {'output':>10} {'cache-w':>10} {'cache-r':>10}{OFF}")
+    for m, r in sorted(rates.items()):
+        print(
+            f"  {m:<30} ${r.get('input', 0):>9.2f} ${r.get('output', 0):>9.2f} "
+            f"${r.get('cache_write', 0):>9.2f} ${r.get('cache_read', 0):>9.2f}"
+        )
+    print(f"\n{DIM}Matched by longest prefix, so a 'claude-opus-4-8' entry beats 'claude-opus'.{OFF}")
+
+
+def cmd_calibrate(opts):
+    """Solve per-model rates from Claude Code's own recorded cost/usage pairs.
+
+    ~/.claude.json's `lastModelUsage` records BOTH token counts and the costUSD
+    Claude Code computed for them. With one equation per project and four unknown
+    rates, that is an overdetermined system — least squares recovers the rate card
+    without anyone having to guess at current list prices.
+    """
+    import numpy as np
+
+    cj = HOME / ".claude.json"
+    if not cj.is_file():
+        die(f"{cj} not found — nothing to calibrate against")
+    data = json.loads(cj.read_text())
+    obs = defaultdict(list)
+    for e in data.get("projects", {}).values():
+        for model, u in (e.get("lastModelUsage") or {}).items():
+            row = [
+                (u.get("inputTokens") or 0) / 1e6,
+                (u.get("outputTokens") or 0) / 1e6,
+                (u.get("cacheCreationInputTokens") or 0) / 1e6,
+                (u.get("cacheReadInputTokens") or 0) / 1e6,
+            ]
+            cost = u.get("costUSD") or 0
+            if cost > 0 and any(row):
+                obs[model].append((row, cost))
+
+    def _nnls(A, b):
+        """Least squares constrained to non-negative rates.
+
+        A plain lstsq can return a negative price when the token columns are
+        nearly collinear (long agentic sessions have an almost fixed ratio of
+        cache-read to output). Active set: solve, pin any negative coefficient
+        to zero, re-solve on what is left, repeat.
+        """
+        free = list(range(A.shape[1]))
+        while free:
+            sol = np.zeros(A.shape[1])
+            part, *_ = np.linalg.lstsq(A[:, free], b, rcond=None)
+            sol[free] = part
+            neg = [free[i] for i, v in enumerate(part) if v < -1e-9]
+            if not neg:
+                return sol
+            for j in neg:
+                free.remove(j)
+        return None
+
+    solved, skipped, notes = {}, [], {}
+    defaults = load_rates()
+    MIN_OBS = int(os.environ.get("CLAUDE_COSTS_MIN_OBS", 4))
+
+    for model, rows in sorted(obs.items()):
+        A = np.array([r for r, _ in rows])
+        b = np.array([c for _, c in rows])
+        if len(rows) < 2:
+            skipped.append((model, len(rows), "only one observation"))
+            continue
+        sol = _nnls(A, b)
+        if sol is None:
+            skipped.append((model, len(rows), "no non-negative solution"))
+            continue
+        resid = float(np.abs(A @ sol - b).sum() / max(b.sum(), 1e-9))
+
+        # A coefficient is only believable if its column carries real mass. A model
+        # whose observations happen to have no cache-read tokens cannot teach us the
+        # cache-read price - the solver will happily return 0, which would silently
+        # zero out billions of tokens at report time. Fall back to the family rate
+        # for any such field instead.
+        mass = A.sum(axis=0)
+        total_mass = mass.sum() or 1.0
+        fam = rate_for(model, defaults) or {}
+        rate, inferred, defaulted = {}, [], []
+        for j, field in enumerate(FIELDS):
+            weak = mass[j] / total_mass < 0.005
+            if weak or sol[j] <= 1e-9:
+                rate[field] = fam.get(field, 0.0)
+                defaulted.append(field)
+            else:
+                rate[field] = round(float(sol[j]), 4)
+                inferred.append(field)
+        if not inferred:
+            skipped.append((model, len(rows), "no field had enough signal"))
+            continue
+        low_conf = len(rows) < MIN_OBS or resid > 0.05
+        if low_conf and not opts.force:
+            why = (
+                f"only {len(rows)} observations, need {MIN_OBS}"
+                if len(rows) < MIN_OBS
+                else f"residual {resid*100:.1f}% too high"
+            )
+            skipped.append((model, len(rows), f"{why} - use --force to accept"))
+            continue
+        solved[model] = rate
+        notes[model] = (len(rows), resid, inferred, defaulted, low_conf)
+
+    for model, rate in solved.items():
+        n, resid, inferred, defaulted, low_conf = notes[model]
+        tag = f" {YEL}low-confidence{OFF}" if low_conf else ""
+        print(
+            f"  {GRN}solved{OFF} {model:<32} from {n:>3} observations  "
+            f"{DIM}residual {resid*100:.2f}%{OFF}{tag}"
+        )
+        print(
+            f"         {DIM}input ${rate['input']:.2f}  output ${rate['output']:.2f}  "
+            f"cache-w ${rate['cache_write']:.2f}  cache-r ${rate['cache_read']:.2f}  per 1M tokens{OFF}"
+        )
+        if defaulted:
+            print(f"         {DIM}(kept default rate for {', '.join(defaulted)} - no signal in the data){OFF}")
+    for model, n, why in skipped:
+        print(f"  {YEL}skipped{OFF} {model:<32} ({n} observations: {why})")
+
+    if not solved:
+        die("nothing could be solved — keeping existing rates")
+    if opts.dry_run:
+        print(f"\n{DIM}(dry run — {short(str(RATES_FILE))} not written){OFF}")
+        return
+    RATES_FILE.parent.mkdir(parents=True, exist_ok=True)
+    existing = json.loads(RATES_FILE.read_text()) if RATES_FILE.is_file() else {}
+    existing.update(solved)
+    RATES_FILE.write_text(json.dumps(existing, indent=2, sort_keys=True) + "\n")
+    print(f"\nwrote {len(solved)} model rates to {short(str(RATES_FILE))}")
+
+
+def cmd_clean(opts):
+    if not CACHE.is_dir():
+        print("cache is already empty")
+        return
+    files = list(CACHE.glob("*.json.gz"))
+    size = sum(f.stat().st_size for f in files)
+    for f in files:
+        f.unlink()
+    print(f"removed {len(files)} cached parse results ({size / 1e6:.1f} MB) from {short(str(CACHE))}")
+
+
+def cmd_json(opts):
+    projects, unpriced, scope = collect(opts)
+    print(
+        json.dumps(
+            {
+                "generated": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+                "scope": "all" if opts.all else [str(r) for r in DEFAULT_ROOTS],
+                "total_cost_usd": scope["grand"],
+                "unpriced_models": sorted(unpriced),
+                "projects": projects,
+            },
+            indent=2,
+        )
+    )
+
+
+def cmd_csv(opts):
+    import csv
+
+    projects, _, _scope = collect(opts)
+    w = csv.writer(sys.stdout)
+    w.writerow(["project", "model", "cost_usd", "calls", *FIELDS])
+    for p in projects:
+        for r in p["models"]:
+            w.writerow(
+                [p["project"], r["model"], f"{r['cost']:.4f}", r["calls"], *(r[f] for f in FIELDS)]
+            )
+
+
+def cmd_report(opts):
+    projects, unpriced, scope = collect(opts)
+    print_report(projects, unpriced, opts, scope)
+
+
+HELP = f"""{BOLD}claude-costs{OFF} — per-project, per-model cost from Claude Code transcripts
+
+{BOLD}USAGE{OFF}
+  claude-costs [report] [options]   per-project model breakdown + grand total (default)
+  claude-costs models [options]     grand total by model only (implies --compact)
+  claude-costs json   [options]     machine-readable
+  claude-costs csv    [options]     one row per project+model
+  claude-costs rates                show the USD/1M rate card being applied
+  claude-costs calibrate [-n]       solve rates from Claude Code's own recorded costs
+                                    (add --force to accept low-confidence solves)
+  claude-costs clean                drop the parse cache
+  claude-costs help
+
+{BOLD}OPTIONS{OFF}
+  --all             every project, not just those under ~/dev and ~/repos
+  --compact         one line per project, no model rows
+  --top N           only the N most expensive projects
+  --sort cost|name|calls        default: cost
+  --since YYYY-MM-DD / --until YYYY-MM-DD   filter by response timestamp
+  --no-cache        re-parse everything (default: cache keyed on mtime+size)
+  --quiet           no scan progress on stderr
+
+{BOLD}NOTES{OFF}
+  Totals come from the per-response `usage` blocks in ~/.claude/projects/**/*.jsonl,
+  deduplicated by requestId — Claude Code writes one record per content block, so
+  summing rows naively over-counts roughly 3x.
+
+  This does NOT use the `lastCost` counter in ~/.claude.json. That counter is a lossy
+  summary: on this machine it under-reports output ~5x and cache-read ~3x. Conversely
+  some projects have counters but no surviving transcripts, so neither source is a
+  superset of the other — see `claude-costs calibrate`, which exploits the counter's
+  one advantage (it stores cost AND tokens together) to recover the rate card.
+
+  Rates are list prices in {short(str(RATES_FILE))}; edit or calibrate them.
+"""
+
+
+class Opts:
+    def __init__(self):
+        self.all = False
+        self.compact = False
+        self.top = 0
+        self.sort = "cost"
+        self.since = ""
+        self.until = ""
+        self.cache = True
+        self.progress = sys.stderr.isatty()
+        self.dry_run = False
+        self.models_only = False
+        self.force = False
+
+
+def main(argv):
+    opts = Opts()
+    cmd = "report"
+    args = list(argv)
+    if args and not args[0].startswith("-"):
+        cmd = args.pop(0)
+    while args:
+        a = args.pop(0)
+        if a == "--all":
+            opts.all = True
+        elif a == "--force":
+            opts.force = True
+        elif a == "--compact":
+            opts.compact = True
+        elif a == "--no-cache":
+            opts.cache = False
+        elif a in ("--quiet", "-q"):
+            opts.progress = False
+        elif a in ("--dry-run", "-n"):
+            opts.dry_run = True
+        elif a == "--top":
+            opts.top = int(args.pop(0))
+        elif a == "--sort":
+            opts.sort = args.pop(0)
+            if opts.sort not in ("cost", "name", "calls"):
+                die("--sort must be cost, name or calls")
+        elif a == "--since":
+            opts.since = args.pop(0)
+        elif a == "--until":
+            opts.until = args.pop(0)
+        elif a in ("-h", "--help"):
+            cmd = "help"
+        else:
+            die(f"unknown option {a!r} (try `claude-costs help`)")
+
+    if cmd in ("help", "-h", "--help"):
+        print(HELP)
+        return
+    if cmd == "models":
+        opts.compact = opts.models_only = True
+    handlers = {
+        "report": cmd_report,
+        "models": cmd_report,
+        "json": cmd_json,
+        "csv": cmd_csv,
+        "rates": cmd_rates,
+        "calibrate": cmd_calibrate,
+        "clean": cmd_clean,
+    }
+    if cmd not in handlers:
+        die(f"unknown command {cmd!r} (try `claude-costs help`)")
+    handlers[cmd](opts)
+
+
+if __name__ == "__main__":
+    try:
+        main(sys.argv[1:])
+    except KeyboardInterrupt:
+        raise SystemExit(130)
+    except BrokenPipeError:
+        os._exit(0)  # piping into `head` is normal usage

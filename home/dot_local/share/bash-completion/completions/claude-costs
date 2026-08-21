@@ -1,0 +1,24 @@
+# bash completion for claude-costs
+_claude_costs() {
+  local cur prev cmds opts
+  COMPREPLY=()
+  cur=${COMP_WORDS[COMP_CWORD]}
+  prev=${COMP_WORDS[COMP_CWORD-1]}
+  cmds="report models json csv rates calibrate clean help"
+  opts="--all --force --compact --top --sort --since --until --no-cache --quiet --dry-run --help"
+
+  case "$prev" in
+    --sort) COMPREPLY=($(compgen -W "cost name calls" -- "$cur")); return ;;
+    --top)  COMPREPLY=($(compgen -W "5 10 20 50" -- "$cur")); return ;;
+    --since|--until)
+      # a few useful anchors; any YYYY-MM-DD is accepted
+      COMPREPLY=($(compgen -W "$(date +%Y-01-01) $(date +%Y-%m-01) $(date +%Y-%m-%d)" -- "$cur"))
+      return ;;
+  esac
+
+  if ((COMP_CWORD == 1)) && [[ $cur != -* ]]; then
+    COMPREPLY=($(compgen -W "$cmds" -- "$cur")); return
+  fi
+  COMPREPLY=($(compgen -W "$opts" -- "$cur"))
+}
+complete -F _claude_costs claude-costs
