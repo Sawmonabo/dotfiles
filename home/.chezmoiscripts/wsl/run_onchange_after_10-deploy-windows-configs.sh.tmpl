@@ -305,17 +305,38 @@ else
     echo "==> Windows ripgrep already present."
 fi
 
-# Put $WIN_HOME/bin on the Windows *user* PATH (no admin needed). Idempotent.
-if [[ -f "$RG_EXE" ]]; then
-    powershell.exe -NoProfile -Command '
-        $dir = "$env:USERPROFILE\bin"
-        $cur = [Environment]::GetEnvironmentVariable("Path","User")
-        if (($cur -split ";") -notcontains $dir) {
-            [Environment]::SetEnvironmentVariable("Path", $cur.TrimEnd(";") + ";" + $dir, "User")
-            Write-Output "    Added $dir to the Windows user PATH"
-        } else { Write-Output "    Windows user PATH already contains $dir" }
-    ' 2>/dev/null | tr -d '\r' || true
-fi
+# ---------- Windows user PATH ----------
+# Directories we want on the Windows *user* PATH. %USERPROFILE%\.local\bin is
+# where uv installs itself and its tools on Windows; it normally lands there only
+# as a side effect of running uv's installer, so a rebuilt machine would not have
+# it. %USERPROFILE%\bin holds rg.exe from the block above.
+#
+# Uses [Environment]::SetEnvironmentVariable rather than `reg add` because the
+# .NET API broadcasts WM_SETTINGCHANGE, so Explorer re-reads the environment and
+# anything launched from the Start menu afterwards inherits the new PATH. Nothing
+# can update an ALREADY-RUNNING process: Windows processes inherit their
+# environment block from their parent and never re-read the registry. A long-lived
+# shell (or a WSL session) therefore keeps the old PATH until it is restarted.
+echo "==> Checking Windows user PATH..."
+powershell.exe -NoProfile -Command '
+    $want = @("$env:USERPROFILE\bin", "$env:USERPROFILE\.local\bin")
+    $cur  = [Environment]::GetEnvironmentVariable("Path","User")
+    # Drop empty segments (a stray ";;" is common) while preserving order.
+    $entries = @($cur -split ";" | Where-Object { $_ -ne "" })
+    $added = @()
+    foreach ($d in $want) {
+        if ($entries -notcontains $d) { $entries += $d; $added += $d }
+    }
+    $new = ($entries -join ";")
+    if ($new -ne $cur) {
+        [Environment]::SetEnvironmentVariable("Path", $new, "User")
+        if ($added.Count) { $added | ForEach-Object { Write-Output "    Added $_" } }
+        else { Write-Output "    Cleaned empty PATH segments" }
+        Write-Output "    NOTE: already-running processes keep the old PATH until restarted."
+    } else {
+        Write-Output "    Already correct."
+    }
+' 2>/dev/null | tr -d '\r' || true
 
 # ---------- VS Code (Windows host) todo-tree ripgrep path ----------
 # Merge a single key rather than managing settings.json outright: VS Code and its
