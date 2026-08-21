@@ -105,6 +105,13 @@ code() {
                 ;;
         esac
 
+        # Only reroute when the workspace file actually exists; otherwise
+        # (fresh machine, ~/workspaces not restored yet) open the directory
+        # itself instead of handing VS Code a nonexistent path.
+        if [[ -n "$routed_target" && ! -f "$routed_target" ]]; then
+            routed_target=""
+        fi
+
         if [[ -n "$routed_target" ]]; then
             if (( $# > 1 )); then
                 prefix_args=("${@:1:$#-1}")
