@@ -260,6 +260,25 @@ SETUPSCRIPT
 fi
 
 
+# ---------- Default WSL distro ----------
+# Docker Desktop registers its own distro and often leaves it as the default.
+# A bare `wsl` then drops you into docker-desktop, and VS Code's "Reopen in WSL"
+# targets it too - opening the wrong distro with none of your toolchain. Point
+# the default at the real distro instead. Only acts when a non-docker distro
+# exists and the default is currently docker-desktop.
+CURRENT_DEFAULT=$(wsl.exe -l -v 2>/dev/null | tr -d '\r\0' | awk '/^\*/{print $2}')
+if [[ "$CURRENT_DEFAULT" == docker-desktop* ]]; then
+    REAL_DISTRO=$(wsl.exe -l -q 2>/dev/null | tr -d '\r\0' | grep -v '^docker-desktop' | grep -v '^$' | head -1)
+    if [[ -n "$REAL_DISTRO" ]]; then
+        echo "==> Default WSL distro is $CURRENT_DEFAULT; switching to $REAL_DISTRO..."
+        wsl.exe --set-default "$REAL_DISTRO" >/dev/null 2>&1 \
+            && echo "    Default distro is now $REAL_DISTRO" \
+            || echo "    WARNING: could not change the default distro"
+    fi
+else
+    echo "==> Default WSL distro: ${CURRENT_DEFAULT:-unknown} (leaving alone)."
+fi
+
 # ---------- Windows-side ripgrep ----------
 # VS Code's Todo-Tree extension shells out to ripgrep. Its bundled copy lives under
 # a version-hash directory that changes on every VS Code update, so pointing the
