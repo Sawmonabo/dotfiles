@@ -42,7 +42,7 @@ fi
 mkdir -p "$HOME/.config/oh-my-posh"
 
 # --- JetBrains Mono Nerd Font ---
-if ! system_profiler SPFontsDataType 2>/dev/null | grep -qi "JetBrainsMono Nerd Font"; then
+if ! system_profiler SPFontsDataType 2>/dev/null | grep -i "JetBrainsMono Nerd Font" >/dev/null; then
     echo "==> Installing JetBrains Mono Nerd Font..."
     brew install --cask font-jetbrains-mono-nerd-font
     echo "    JetBrains Mono Nerd Font installed."

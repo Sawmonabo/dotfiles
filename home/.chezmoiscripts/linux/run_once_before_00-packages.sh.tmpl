@@ -70,7 +70,15 @@ mkdir -p "$OMP_CONFIG_DIR"
 
 # --- JetBrains Mono Nerd Font ---
 FONT_DIR="$HOME/.local/share/fonts"
-if ! fc-list | grep -qi "JetBrainsMono Nerd Font" 2>/dev/null; then
+# Installed-check: look for the font files themselves. The previous
+# `fc-list | grep -q` test was wrong under `set -o pipefail`: grep -q exits on
+# the first match and closes the pipe, fc-list dies of SIGPIPE, the pipeline
+# reports failure, and the font was re-downloaded on every run.
+font_installed() {
+    compgen -G "$FONT_DIR/JetBrainsMono*NerdFont*.ttf" >/dev/null \
+        || { command -v fc-list >/dev/null && fc-list 2>/dev/null | grep -ci "JetBrainsMono Nerd Font" | grep -qv '^0$'; }
+}
+if ! font_installed; then
     echo "==> Installing JetBrains Mono Nerd Font..."
     mkdir -p "$FONT_DIR"
     FONT_URL=$(curl -fsSL https://api.github.com/repos/ryanoasis/nerd-fonts/releases/latest \

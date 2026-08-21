@@ -13,7 +13,7 @@ FONT_NAME="JetBrainsMonoNerdFont-Regular"
 FONT_SIZE="12"
 
 # Check if the font is installed
-if ! system_profiler SPFontsDataType 2>/dev/null | grep -qi "JetBrainsMono Nerd Font"; then
+if ! system_profiler SPFontsDataType 2>/dev/null | grep -i "JetBrainsMono Nerd Font" >/dev/null; then
     echo "    ⚠ JetBrains Mono Nerd Font not found"
     echo "    Please install it first: brew install --cask font-jetbrains-mono-nerd-font"
     exit 0
