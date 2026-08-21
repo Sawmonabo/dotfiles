@@ -14,3 +14,15 @@
     path = ~/.gitconfig-personal
 [alias]
     refresh = !git fetch --all --prune && git pull --all --prune
+{{- if lookPath "gh" }}
+
+# GitHub auth via the gh CLI (gh auth login). Path-independent so the same
+# block works on Linux/WSL (apt) and macOS (brew). The empty helper line
+# clears any system-level helper first, as `gh auth setup-git` writes it.
+[credential "https://github.com"]
+    helper =
+    helper = !gh auth git-credential
+[credential "https://gist.github.com"]
+    helper =
+    helper = !gh auth git-credential
+{{- end }}
