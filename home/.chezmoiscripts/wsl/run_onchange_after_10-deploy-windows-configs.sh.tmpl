@@ -298,16 +298,33 @@ if [[ -f "$RG_EXE" ]]; then
     ' 2>/dev/null | tr -d '\r' || true
 fi
 
-# ---------- VS Code (Windows host) todo-tree.ripgrep ----------
+# ---------- VS Code (Windows host) todo-tree ripgrep path ----------
 # Merge a single key rather than managing settings.json outright: VS Code and its
 # extensions rewrite this file constantly, so a chezmoi-owned copy would fight it
 # on every apply.
+#
+# The key is "todo-tree.ripgrep.ripgrep" - nested under the extension's "ripgrep"
+# settings category. Todo-Tree's own error message tells you to set
+# "todo-tree.ripgrep", which is NOT a declared setting; VS Code accepts unknown
+# keys silently, so getting this wrong looks like it worked and changes nothing.
+#
+# A Windows path is correct here because this settings.json is read by the Windows
+# extension host - including when a WSL folder is opened over \\wsl.localhost.
+# Opening a folder through Remote-WSL instead runs the extension inside WSL, where
+# this path is meaningless; that case needs a Linux path in the remote's machine
+# settings (~/.vscode-server/data/Machine/settings.json).
 VSCODE_SETTINGS="$WIN_HOME/AppData/Roaming/Code/User/settings.json"
 if [[ -f "$VSCODE_SETTINGS" && -f "$RG_EXE" ]]; then
-    if grep -q 'todo-tree.ripgrep' "$VSCODE_SETTINGS"; then
-        echo "==> VS Code todo-tree.ripgrep already set."
+    # Repair the mis-named key an earlier version of this script wrote.
+    if grep -q '"todo-tree\.ripgrep"' "$VSCODE_SETTINGS"; then
+        echo "==> Fixing mis-named todo-tree.ripgrep key..."
+        sed -i 's/"todo-tree\.ripgrep"/"todo-tree.ripgrep.ripgrep"/' "$VSCODE_SETTINGS"
+    fi
+
+    if grep -q 'todo-tree\.ripgrep\.ripgrep' "$VSCODE_SETTINGS"; then
+        echo "==> VS Code todo-tree ripgrep path already set."
     else
-        echo "==> Adding todo-tree.ripgrep to Windows VS Code settings..."
+        echo "==> Adding todo-tree ripgrep path to Windows VS Code settings..."
         cp "$VSCODE_SETTINGS" "${VSCODE_SETTINGS}.chezmoi.bak"
         python3 - "$VSCODE_SETTINGS" <<'PYEOF'
 import sys
@@ -318,7 +335,7 @@ head = s[:i].rstrip()
 if not head.endswith((',', '{')):
     head += ','
 open(p, 'w', encoding='utf-8').write(
-    head + '\n    "todo-tree.ripgrep": "%USERPROFILE%\\\\bin\\\\rg.exe"\n}\n')
+    head + '\n    "todo-tree.ripgrep.ripgrep": "%USERPROFILE%\\\\bin\\\\rg.exe"\n}\n')
 PYEOF
         # %USERPROFILE% is not expanded by VS Code - substitute the real path.
         WIN_HOME_WIN=$(wslpath -w "$WIN_HOME" 2>/dev/null | tr -d '\r')
@@ -330,6 +347,36 @@ open(p, 'w', encoding='utf-8').write(
     s.replace('%USERPROFILE%', home.replace('\\', '\\\\')))
 PYEOF
         echo "    Set (reload the VS Code window to pick it up)."
+    fi
+fi
+
+# ---------- VS Code Remote-WSL machine settings ----------
+# Opening a folder through Remote-WSL runs extensions inside WSL, where the
+# Windows rg.exe path above is meaningless. The remote's machine-scope settings
+# override user settings for that case only. Seeded even before ~/.vscode-server
+# exists - the server creates the tree around an existing file rather than
+# replacing it.
+LINUX_RG="$HOME/.local/bin/rg"
+MACHINE_SETTINGS="$HOME/.vscode-server/data/Machine/settings.json"
+if [[ -x "$LINUX_RG" ]]; then
+    mkdir -p "$(dirname "$MACHINE_SETTINGS")"
+    [[ -f "$MACHINE_SETTINGS" ]] || echo '{}' > "$MACHINE_SETTINGS"
+    if grep -q 'todo-tree\.ripgrep\.ripgrep' "$MACHINE_SETTINGS"; then
+        echo "==> Remote-WSL todo-tree ripgrep path already set."
+    else
+        echo "==> Setting todo-tree ripgrep path for Remote-WSL..."
+        python3 - "$MACHINE_SETTINGS" "$LINUX_RG" <<'PYEOF'
+import json, sys
+p, rg = sys.argv[1], sys.argv[2]
+try:
+    d = json.load(open(p, encoding='utf-8-sig'))
+    if not isinstance(d, dict): d = {}
+except Exception:
+    d = {}
+d['todo-tree.ripgrep.ripgrep'] = rg
+json.dump(d, open(p, 'w', encoding='utf-8'), indent=4)
+PYEOF
+        echo "    $MACHINE_SETTINGS -> $LINUX_RG"
     fi
 fi
 
