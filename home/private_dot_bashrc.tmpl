@@ -79,53 +79,6 @@ eval "$(oh-my-posh init bash --config ~/.config/oh-my-posh/catppuccin_mocha.omp.
 # --- Editor ---
 export EDITOR="{{ .editor }} --wait"
 
-# --- VS Code launcher with workspace routing ---
-code() {
-    local ide_launcher="code"
-    local last_arg
-    local routed_target
-    local target_path
-    local -a prefix_args
-
-    if [[ -n "$CODE_WORKSPACE_ROUTER_DISABLE" ]]; then
-        command "$ide_launcher" "$@"
-        return
-    fi
-
-    if (( $# >= 1 )); then
-        last_arg="${@: -1}"
-        target_path="$(realpath -m "$last_arg" 2>/dev/null || printf '%s' "$last_arg")"
-
-        case "$target_path" in
-            /home/sabossedgh/repos)
-                routed_target="/home/sabossedgh/workspaces/repos.code-workspace"
-                ;;
-            /home/sabossedgh/dev)
-                routed_target="/home/sabossedgh/workspaces/dev.code-workspace"
-                ;;
-        esac
-
-        # Only reroute when the workspace file actually exists; otherwise
-        # (fresh machine, ~/workspaces not restored yet) open the directory
-        # itself instead of handing VS Code a nonexistent path.
-        if [[ -n "$routed_target" && ! -f "$routed_target" ]]; then
-            routed_target=""
-        fi
-
-        if [[ -n "$routed_target" ]]; then
-            if (( $# > 1 )); then
-                prefix_args=("${@:1:$#-1}")
-                command "$ide_launcher" "${prefix_args[@]}" "$routed_target"
-            else
-                command "$ide_launcher" "$routed_target"
-            fi
-            return
-        fi
-    fi
-
-    command "$ide_launcher" "$@"
-}
-
 alias create-spec='source /home/sabossedgh/repos/ai-devtools/.venv/bin/activate && python /home/sabossedgh/repos/ai-devtools/.claude/tmp/sessions/2026-02-10/artifacts/create_spec_only.py'
 # WSL: hand the VM's file cache back to Windows on demand. Linux keeps
 # everything it reads cached (shows up as vmmemWSL in Task Manager); this is
