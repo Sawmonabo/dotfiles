@@ -40,6 +40,32 @@ else
     echo "==> bat already installed, skipping."
 fi
 
+# --- fd ---
+# Prefer the distro package (seconds, no compiler). Debian/Ubuntu ship the
+# binary as `fdfind` (name clash with fdclone); expose it as `fd` in
+# ~/.local/bin. Fall back to cargo only where apt is unavailable.
+if ! command -v fd &>/dev/null; then
+    if command -v apt-get &>/dev/null; then
+        echo "==> Installing fd via apt..."
+        sudo apt-get install -y -qq fd-find
+        if ! command -v fd &>/dev/null && command -v fdfind &>/dev/null; then
+            mkdir -p "$HOME/.local/bin"
+            ln -sf "$(command -v fdfind)" "$HOME/.local/bin/fd"
+        fi
+    else
+        echo "==> Installing fd via cargo..."
+        if ! command -v cargo &>/dev/null; then
+            echo "    Installing rustup first..."
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+            . "$HOME/.cargo/env"
+        fi
+        cargo install fd-find
+    fi
+    echo "    fd installed."
+else
+    echo "==> fd already installed, skipping."
+fi
+
 # --- oh-my-posh ---
 if ! command -v oh-my-posh &>/dev/null; then
     echo "==> Installing oh-my-posh..."

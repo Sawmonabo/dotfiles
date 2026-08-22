@@ -29,6 +29,16 @@ else
     echo "==> bat already installed, skipping."
 fi
 
+# --- fd ---
+# Homebrew ships the binary as `fd` directly (no rename, unlike Debian's fdfind).
+if ! command -v fd &>/dev/null; then
+    echo "==> Installing fd..."
+    brew install fd
+    echo "    fd installed."
+else
+    echo "==> fd already installed, skipping."
+fi
+
 # --- oh-my-posh ---
 if ! command -v oh-my-posh &>/dev/null; then
     echo "==> Installing oh-my-posh..."

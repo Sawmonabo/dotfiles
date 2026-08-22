@@ -20,12 +20,12 @@ Within `home/`, chezmoi templates deploy to `~` on each platform using chezmoi's
 | `home/dot_claude/` | `~/.claude/` | `CLAUDE.md` and `private_settings.json` |
 | `home/dot_codex/` | `~/.codex/` | `AGENTS.md`, `private_config.toml.tmpl`, `private_hooks.json` |
 | `home/dot_config/` | `~/.config/` | `oh-my-posh/catppuccin_mocha.omp.json` (theme, all platforms) and `tmux/tmux.conf` |
-| `home/.chezmoiscripts/linux/run_once_before_00-packages.sh.tmpl` | (run script) | Linux/WSL bootstrap: build-essential, bat, oh-my-posh + themes, Nerd Font, gh (upstream static binary to ~/.local/bin, no sudo), tmux, TPM |
+| `home/.chezmoiscripts/linux/run_once_before_00-packages.sh.tmpl` | (run script) | Linux/WSL bootstrap: build-essential, bat, fd (apt `fd-find`, symlinked `fdfind`→`fd` in ~/.local/bin), oh-my-posh + themes, Nerd Font, gh (upstream static binary to ~/.local/bin, no sudo), tmux, TPM |
 | `home/.chezmoiscripts/linux/run_once_after_10-runtime-managers.sh.tmpl` | (run script) | Installs nvm, uv, rustup, bun, Go managers |
 | `home/.chezmoiscripts/linux/run_onchange_after_20-runtimes.sh.tmpl` | (run script) | Pinned Node versions + default alias, uv Pythons, Rust toolchain; re-runs when pins change |
 | `home/.chezmoiscripts/linux/run_onchange_after_30-global-tools.sh.tmpl` | (run script) | codex, claude, corepack pnpm/yarn, uv tools, cargo tools, go tools, podman |
 | `home/.chezmoiscripts/linux/run_onchange_after_40-tmux-plugins.sh.tmpl` | (run script) | tmux plugin manager + plugins |
-| `home/.chezmoiscripts/darwin/run_once_before_00-packages.sh.tmpl` | (run script) | macOS bootstrap: Homebrew, bat, oh-my-posh, Nerd Font, gh |
+| `home/.chezmoiscripts/darwin/run_once_before_00-packages.sh.tmpl` | (run script) | macOS bootstrap: Homebrew, bat, fd, oh-my-posh, Nerd Font, gh |
 | `home/.chezmoiscripts/darwin/run_onchange_after_10-terminal-font.sh.tmpl` | (run script) | Instructions for Terminal.app font setup (macOS only) |
 | `home/.chezmoiscripts/wsl/run_once_before_00-packages-windows.sh.tmpl` | (run script) | WSL only; installs oh-my-posh.exe, fonts, Windows Terminal settings, PowerShell profile |
 | `home/.chezmoiscripts/wsl/run_onchange_after_10-deploy-windows-configs.sh.tmpl` | (run script) | WSL only; merges `.wslconfig` (memory/processors/swap from chezmoi data, mirrored networking, vmIdleTimeout, autoMemoryReclaim, sparseVhd) and deploys RestartWSL scripts to Windows |
