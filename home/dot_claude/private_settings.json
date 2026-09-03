@@ -43,19 +43,6 @@
     "defaultMode": "auto"
   },
   "model": "claude-fable-5-1[1m]",
-  "hooks": {
-    "SessionStart": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.local/bin/agent-brain-healthcheck.sh"
-          }
-        ]
-      }
-    ]
-  },
   "statusLine": {
     "type": "command",
     "command": "python3 ~/.claude/scripts/statusline.py",
@@ -74,7 +61,6 @@
     "mcp-server-dev@claude-plugins-official": false,
     "superpowers@claude-plugins-official": true,
     "skill-creator@claude-plugins-official": true,
-    "playwright@claude-plugins-official": false,
     "codex@openai-codex": true,
     "ui-ux-pro-max@ui-ux-pro-max-skill": true,
     "deep-research@sidekick-skills": true,
