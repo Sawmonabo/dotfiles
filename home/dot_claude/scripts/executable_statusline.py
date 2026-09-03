@@ -22,6 +22,9 @@ THEME = "oxocarbon"
 # ellipsis (too wide) or a gap on the right (too narrow).
 RIGHT_INSET = 4
 
+# Shortest a clipped branch / worktree name may get before other segments go.
+MIN_NAME = 14
+
 # name: (a_bg, a_fg, b_bg, b_fg, c_bg, c_fg, ok, warn, danger, edge)
 # edge: the second dark-text fill (path block + worktree block).
 THEMES = {
@@ -112,6 +115,11 @@ def countdown(resets_at: float) -> str:
     return f"{m}m" if m else "<1m"
 
 
+def clip(text: str, width: int) -> str:
+    """``text`` shortened from the left to ``width`` columns with an ellipsis."""
+    return text if len(text) <= width else "…" + text[-(width - 1):]
+
+
 def link(url: str, text: str) -> str:
     """OSC 8 hyperlink; zero visible width, Ctrl/Cmd+click in terminals."""
     return f"\033]8;;{url}\a{text}\033]8;;\a" if url else text
@@ -168,7 +176,11 @@ def main() -> None:
         left.append(Segment(edge, b_fg, f"⌥ {worktree}", bold=True))
     branch = git_branch(cwd) if cwd else ""
     href = branch_url(cwd, branch) if branch and on_origin(cwd, branch) else ""
-    tail_seg = Segment(c_bg, c_fg, f"\ue0a0 {branch}", href=href) if branch else None
+
+    def branch_seg(name: str) -> Segment:
+        return Segment(c_bg, c_fg, f"\ue0a0 {name}", href=href)
+
+    tail_seg = branch_seg(branch) if branch else None
 
     right = []
     bits, plain = [], []
@@ -179,10 +191,11 @@ def main() -> None:
         reset = f" {countdown(window['resets_at'])}" if "resets_at" in window else ""
         bits.append(f"{label} {fg(usage_color(val, ok, warn, danger))}{n}{fg(c_fg)}{reset}{fg(b_fg)}")
         plain.append(f"{label} {n}{reset}")
+    limits_seg = None
     if plain:
-        seg = Segment(b_bg, b_fg, "  ".join(plain), bold=True)
-        seg.ansi = f"{bg(b_bg)}{fg(b_fg)}{BOLD} {'  '.join(bits)} {RESET}"
-        right.append(seg)
+        limits_seg = Segment(b_bg, b_fg, "  ".join(plain), bold=True)
+        limits_seg.ansi = f"{bg(b_bg)}{fg(b_fg)}{BOLD} {'  '.join(bits)} {RESET}"
+        right.append(limits_seg)
     # Right edge group: cost on the accent, ctx on the usage gradient.
     if cost is not None:
         right.append(Segment(a_bg, a_fg, f"${cost:.2f}", bold=True))
@@ -196,15 +209,26 @@ def main() -> None:
         return
 
     avail = cols - RIGHT_INSET
-    fixed = sum(s.width for s in left + right) + dividers(left) + dividers(right)
-    # Degrade gracefully on narrow terminals: drop the branch, then the limits.
-    # The cost and ctx segments always stay.
-    if tail_seg and fixed + tail_seg.width > avail:
+
+    def used_width() -> int:
+        segs = left + right
+        return sum(s.width for s in segs) + dividers(left) + dividers(right)
+
+    # Degrade gracefully on narrow terminals, keeping names visible as long
+    # as possible: clip the branch, then the worktree name, then drop the
+    # limits, and only then drop the branch.  Cost and ctx always stay.
+    if tail_seg and used_width() + tail_seg.width > avail:
+        tail_seg = branch_seg(clip(branch, max(MIN_NAME, avail - used_width() - 4)))
+    if worktree and tail_seg and used_width() + tail_seg.width > avail:
+        over = used_width() + tail_seg.width - avail
+        left[2] = Segment(edge, b_fg, f"⌥ {clip(worktree, max(MIN_NAME, len(worktree) - over))}", bold=True)
+    if tail_seg and used_width() + tail_seg.width > avail and limits_seg in right:
+        right.remove(limits_seg)
+    if tail_seg and used_width() + tail_seg.width > avail:
         tail_seg = None
-    if fixed > avail and len(right) > 1:
-        right = right[1:]
-        fixed = sum(s.width for s in left + right) + dividers(left) + dividers(right)
-    gap = max(0, avail - fixed - (tail_seg.width if tail_seg else 0))
+    if used_width() > avail and limits_seg in right:
+        right.remove(limits_seg)
+    gap = max(0, avail - used_width() - (tail_seg.width if tail_seg else 0))
     middle = (tail_seg.ansi if tail_seg else "") + f"{bg(c_bg)}{' ' * gap}{RESET}"
     print(joined(left, c_fg) + middle + joined(right, c_fg))
 
