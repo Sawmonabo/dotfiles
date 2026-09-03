@@ -45,7 +45,8 @@
   "model": "claude-fable-5[1m]",
   "statusLine": {
     "type": "command",
-    "command": "bash ~/.claude/scripts/statusline.sh"
+    "command": "bash ~/.claude/scripts/statusline.sh",
+    "refreshInterval": 2
   },
   "enabledPlugins": {
     "code-review@claude-plugins-official": true,
