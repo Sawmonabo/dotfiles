@@ -43,9 +43,22 @@
     "defaultMode": "auto"
   },
   "model": "claude-fable-5-1[1m]",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.local/bin/agent-brain-healthcheck.sh"
+          }
+        ]
+      }
+    ]
+  },
   "statusLine": {
     "type": "command",
-    "command": "bash ~/.claude/scripts/statusline.sh",
+    "command": "python3 ~/.claude/scripts/statusline.py",
     "refreshInterval": 2
   },
   "enabledPlugins": {
