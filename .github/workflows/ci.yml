@@ -6,52 +6,30 @@ permissions:
   contents: read
 jobs:
   render-and-lint:
-    runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
+        os: [ubuntu-latest, macos-latest]
+        machine_role: [personal, work, both]
         versions_mode: [pinned, latest]
+        exclude:
+          # versions_mode only affects the Linux runtime scripts
+          - os: macos-latest
+            versions_mode: latest
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - name: Install chezmoi and shellcheck
         run: |
-          sudo apt-get update -q && sudo apt-get install -y shellcheck
+          if [ "$RUNNER_OS" = Linux ]; then
+            sudo apt-get update -q && sudo apt-get install -y shellcheck
+          else
+            brew install shellcheck
+          fi
           sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-      - name: Synthetic chezmoi config (no prompts, no secrets)
-        run: |
-          mkdir -p "$HOME/.config/chezmoi"
-          cat > "$HOME/.config/chezmoi/chezmoi.toml" <<EOF
-          [data]
-              name = "CI User"
-              email = "ci@example.invalid"
-              personal_email = "ci-personal@example.invalid"
-              editor = "code"
-              versions_mode = "${{ matrix.versions_mode }}"
-              wsl_memory = "8GB"
-              restart_wsl_path = "Desktop/RestartWSL"
-              jira_api_token = "ci-placeholder"
-              gitlab_token = "ci-placeholder"
-          EOF
-      - name: Validate config template (init context)
-        run: chezmoi --source "$PWD" execute-template --init < home/.chezmoi.toml.tmpl > /dev/null
-      - name: Render every template, lint every non-empty script
-        run: |
-          set -euo pipefail
-          fail=0
-          while IFS= read -r -d '' f; do
-            out=$(mktemp)
-            if ! chezmoi --source "$PWD" execute-template < "$f" > "$out"; then
-              echo "RENDER FAIL: $f"; fail=1; continue
-            fi
-            case "$f" in
-              *.sh.tmpl)
-                if [ -s "$out" ]; then
-                  bash -n "$out" || { echo "SYNTAX FAIL: $f"; fail=1; }
-                  shellcheck -S warning "$out" || { echo "SHELLCHECK FAIL: $f"; fail=1; }
-                fi ;;
-            esac
-          done < <(find home -name '*.tmpl' ! -name '.chezmoi.toml.tmpl' -print0)
-          exit "$fail"
+      - name: Render, lint, and leak-check
+        run: scripts/render-check.sh "${{ matrix.machine_role }}" "${{ matrix.versions_mode }}"
   secret-scan:
     runs-on: ubuntu-latest
     steps:
