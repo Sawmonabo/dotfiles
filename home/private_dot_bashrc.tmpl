@@ -38,6 +38,7 @@ alias ll='ls -alF'
 alias la='ls -A'
 alias l='ls -CF'
 alias cat='bat --paging=never'
+claude() { command claude --verbose --allow-dangerously-skip-permissions "$@"; }
 
 alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
 
@@ -79,14 +80,20 @@ eval "$(oh-my-posh init bash --config ~/.config/oh-my-posh/catppuccin_mocha.omp.
 # --- Editor ---
 export EDITOR="{{ .editor }} --wait"
 
-alias create-spec='source /home/sabossedgh/repos/ai-devtools/.venv/bin/activate && python /home/sabossedgh/repos/ai-devtools/.claude/tmp/sessions/2026-02-10/artifacts/create_spec_only.py'
+{{- if .has_work }}
+
+# --- Work tooling ---
+alias create-spec='source "$HOME/repos/ai-devtools/.venv/bin/activate" && python "$HOME/repos/ai-devtools/.claude/tmp/sessions/2026-02-10/artifacts/create_spec_only.py"'
+# promptctl
+[ -f "$HOME/.promptctl/shell/aliases.sh" ] && source "$HOME/.promptctl/shell/aliases.sh"
+{{- end }}
+{{- if .is_wsl }}
+
 # WSL: hand the VM's file cache back to Windows on demand. Linux keeps
 # everything it reads cached (shows up as vmmemWSL in Task Manager); this is
 # reclaimable and autoMemoryReclaim trims it when idle, but after big image
 # pulls / clones you may want it back immediately.
-if grep -qi microsoft /proc/version 2>/dev/null; then
-    alias clear-cache="sudo sh -c 'sync; echo 3 > /proc/sys/vm/drop_caches' && free -h"
-fi
+alias clear-cache="sudo sh -c 'sync; echo 3 > /proc/sys/vm/drop_caches' && free -h"
 
 # WSL: route browser opens (bw login SSO/Duo, gh auth, xdg-open) to Windows
 # via ~/.local/bin/win-browser (Chrome -> wslview -> Windows default). A
@@ -96,59 +103,9 @@ fi
 if [ -x "$HOME/.local/bin/win-browser" ]; then
     export BROWSER="$HOME/.local/bin/win-browser"
 fi
+{{- end }}
 
 # Added by remote-dev-workstation install
 export PATH="$HOME/bin:$PATH"
-# `claude` alias is defined in ~/.bash_aliases (sourced above ~line 46) and
-# routes through ~/.local/bin/ab-claude with this user's preferred flags.
 
-# promptctl
-[ -f /home/sabossedgh/.promptctl/shell/aliases.sh ] && source /home/sabossedgh/.promptctl/shell/aliases.sh
-
-# >>> agent-brain >>>
-# managed by tools/install.sh — do not edit between the markers
-case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) export PATH="$HOME/.local/bin:$PATH" ;; esac
-# Plain `claude` is the real binary + host-wide policy flags. Cross-host
-# memory sync is explicit via `ab-claude` (see docs/00-design-spec.md §5.2.7
-# for the v1→v2 explicit-sync rationale and the staleness warning that
-# fires when the user forgets to ab-claude after a machine switch).
-alias claude='command claude --verbose --allow-dangerously-skip-permissions'
-# <<< agent-brain <<<
-
-
-# --- Bitwarden CLI (bw): persistent unlock ---
-# `bw unlock` unlocks once (master password) and caches the session key in a
-# 0600 file that every new shell reads, so bw commands just work afterwards.
-# `bw lock` locks the vault and wipes that cache. Everything else is passed to
-# the real binary untouched (`command bw ...` bypasses the wrapper entirely).
-# Trade-off: while cached, anyone with this user account can read the vault —
-# same class as ~/.aws/credentials. `bw lock` when you are done for the day.
-export BW_SESSION_FILE="$HOME/.config/Bitwarden CLI/session"
-if [ -r "$BW_SESSION_FILE" ]; then
-    BW_SESSION="$(cat "$BW_SESSION_FILE")"; export BW_SESSION
-fi
-bw() {
-    case "$1" in
-        unlock)
-            command -v bw >/dev/null 2>&1 || { echo "bw not installed (https://bitwarden.com/download/?app=cli&platform=linux)"; return 1; }
-            case "$(command bw status 2>/dev/null)" in
-                *'"status":"unlocked"'*) echo "vault already unlocked"; return 0 ;;
-                *'"status":"unauthenticated"'*) command bw login || return 1 ;;
-            esac
-            local s
-            s="$(command bw unlock --raw)" || return 1
-            mkdir -p "$(dirname "$BW_SESSION_FILE")"
-            (umask 077; printf '%s' "$s" >"$BW_SESSION_FILE")
-            BW_SESSION="$s"; export BW_SESSION
-            command bw sync >/dev/null 2>&1
-            echo "vault unlocked and synced; session cached for new shells (bw lock to end it)"
-            ;;
-        lock)
-            command bw lock >/dev/null 2>&1
-            rm -f "$BW_SESSION_FILE"
-            unset BW_SESSION
-            echo "vault locked; cached session removed"
-            ;;
-        *) command bw "$@" ;;
-    esac
-}
+{{ template "bw-wrapper.sh" . }}
