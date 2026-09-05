@@ -1,7 +1,7 @@
 # :schema https://developers.openai.com/codex/config-schema.json
 # Managed by chezmoi. Rendered for machine_role = {{ .machine_role }}.
 # Codex rewrites some sections itself (model_availability_nux, marketplaces,
-# model_migrations); those are intentionally not managed here.
+# model_migrations, hooks.state); those are intentionally not managed here.
 
 model = "gpt-5.6-sol"
 model_reasoning_effort = "xhigh"
@@ -94,10 +94,6 @@ prevent_idle_sleep = true
 
 [plugins."coderabbit@openai-curated"]
 enabled = true
-
-[hooks.state."{{ .chezmoi.homeDir }}/.codex/hooks.json:user_prompt_submit:0:0"]
-enabled = true
-trusted_hash = "sha256:78307189bdd41ce33770cf4ab894bca9463ba3cf0b7302700329d34ae96025b0"
 
 [mcp_servers.dispatch-atlassian]
 enabled = false

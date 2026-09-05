@@ -50,7 +50,7 @@ fi
 if ! grep -qi microsoft /proc/version 2>/dev/null; then
     [ -e "$dest/.local/bin/win-browser" ] && { echo "LEAK: win-browser deployed on non-WSL host"; fail=1; }
 fi
-if grep -rIl -e '\.cursor' -e 'agent-brain' -e 'ab-claude' "$dest"; then
+if grep -rIil -e 'cursor' -e 'agent-brain' -e 'ab-claude' "$dest"; then
     echo "LEAK: Cursor or agent-brain content rendered"; fail=1
 fi
 

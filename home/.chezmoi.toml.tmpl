@@ -9,6 +9,10 @@ Answers persist in the local chezmoi.toml, never in the repo.
 {{- $hasWork := or (eq $role "work") (eq $role "both") -}}
 {{- $hasPersonal := or (eq $role "personal") (eq $role "both") -}}
 {{- /* WSL detection. .chezmoi.kernel is an empty map on macOS, so guard the key. */ -}}
+{{- /* promptChoiceOnce returns a stale answer verbatim, even one outside the
+       choice list (e.g. an old "cursor"); normalise it back to the default. */ -}}
+{{- $editor := promptChoiceOnce . "editor" "Preferred editor" (list "code" "vim") "code" -}}
+{{- if not (has $editor (list "code" "vim")) }}{{ $editor = "code" }}{{ end -}}
 {{- $isWsl := false -}}
 {{- if eq .chezmoi.os "linux" -}}
 {{-   if hasKey .chezmoi.kernel "osrelease" -}}
@@ -30,7 +34,7 @@ sourceDir = "{{ .chezmoi.homeDir }}/dev/dotfiles"
     personal_email = "{{ promptStringOnce . "personal_email" "Git personal email (repos under ~/dev/)" }}"
     work_email = "{{ promptStringOnce . "work_email" "Git work email (repos under ~/repos/ and ~/work/)" }}"
 {{- end }}
-    editor = "{{ promptChoiceOnce . "editor" "Preferred editor" (list "code" "vim") "code" }}"
+    editor = "{{ $editor }}"
     versions_mode = "{{ promptChoiceOnce . "versions_mode" "Install pinned or latest tool versions" (list "pinned" "latest") "pinned" }}"
 {{- if $hasWork }}
     # Secrets: stored only in the local chezmoi.toml on this machine, never in the repo
