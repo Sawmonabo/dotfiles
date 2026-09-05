@@ -1,5 +1,4 @@
-{{ if eq .chezmoi.os "linux" -}}
-{{ if (.chezmoi.kernel.osrelease | lower | contains "microsoft") -}}
+{{ if .is_wsl -}}
 #!/bin/bash
 # Deploy .wslconfig and RestartWSL scripts to the Windows filesystem
 # Re-runs whenever this template's content changes
@@ -440,5 +439,4 @@ if [[ -d "$WIN_HOME/AppData/Roaming/Notepad++" ]] || [[ -d "/mnt/c/Program Files
 fi
 
 echo "==> Done."
-{{ end -}}
 {{ end -}}

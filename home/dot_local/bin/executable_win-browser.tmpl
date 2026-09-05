@@ -1,4 +1,4 @@
-{{ if (.chezmoi.kernel.osrelease | lower | contains "microsoft") -}}
+{{ if .is_wsl -}}
 #!/bin/bash
 # Open a URL in a Windows browser from WSL. Exists so $BROWSER can be a single
 # space-free path: tools like gh split $BROWSER on whitespace, which breaks

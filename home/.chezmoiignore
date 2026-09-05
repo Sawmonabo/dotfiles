@@ -1,7 +1,19 @@
+{{- /* Platform gating */ -}}
 {{ if ne .chezmoi.os "linux" }}
 .bashrc
 {{ end }}
-
 {{ if ne .chezmoi.os "darwin" }}
 .zshrc
+{{ end }}
+{{ if not .is_wsl }}
+.local/bin/win-browser
+{{ end }}
+
+{{- /* Role gating: work-only files never reach a personal machine */ -}}
+{{ if not .has_work }}
+.codex/hooks.json
+{{ end }}
+{{ if ne .machine_role "both" }}
+.gitconfig-personal
+.gitconfig-work
 {{ end }}

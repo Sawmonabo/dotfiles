@@ -1,5 +1,4 @@
-{{ if eq .chezmoi.os "linux" -}}
-{{ if env "WSL_DISTRO_NAME" -}}
+{{ if .is_wsl -}}
 #!/bin/bash
 # Bootstrap script for Windows configs (runs from WSL)
 # Installs oh-my-posh.exe, fonts, Windows Terminal settings, PowerShell profile
@@ -358,5 +357,4 @@ echo "    PowerShell profile written."
 
 echo "==> WSL → Windows bootstrap complete."
 echo "    NOTE: Restart Windows Terminal to see changes."
-{{ end -}}
 {{ end -}}

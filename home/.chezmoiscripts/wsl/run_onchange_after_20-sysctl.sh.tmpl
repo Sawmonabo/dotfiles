@@ -1,5 +1,4 @@
-{{ if eq .chezmoi.os "linux" -}}
-{{ if (.chezmoi.kernel.osrelease | lower | contains "microsoft") -}}
+{{ if .is_wsl -}}
 #!/bin/bash
 # Kernel tuning for a large-memory WSL VM. Re-runs whenever this file changes.
 #
@@ -28,5 +27,4 @@ echo "==> sysctl: writing $CONF ($WANT)"
 printf '# managed by dotfiles (run_onchange_after_20-sysctl)\n%s\n' "$WANT" | sudo tee "$CONF" >/dev/null
 sudo sysctl -q -p "$CONF"
 echo "    vm.swappiness is now $(sysctl -n vm.swappiness)"
-{{ end -}}
 {{ end -}}
