@@ -18,15 +18,18 @@
   full, including directly referenced instructions and supporting documents,
   before drawing conclusions or making changes.
 
+{{- if eq .machine_role "both" }}
+
 ## Path-scoped tool policy
 
 For any task whose effective working directory, repository, or write scope is
-under `/home/sabossedgh/dev/`:
+under `{{ .chezmoi.homeDir }}/dev/`:
 
 - Never invoke CodeRabbit or any CodeRabbit-backed skill, tool, review, autofix,
   or autonomous review workflow.
 - Do not invoke `dispatch-atlassian`, `dispatch-gitlab`, Atlassian, Jira, or
   GitLab MCP tools.
 
-This prohibition is scoped to `/home/sabossedgh/dev/` and its descendants. It
-does not prohibit those tools for work under `/home/sabossedgh/repos/`.
+This prohibition is scoped to `{{ .chezmoi.homeDir }}/dev/` and its descendants.
+It does not prohibit those tools for work under `{{ .chezmoi.homeDir }}/repos/`.
+{{- end }}
