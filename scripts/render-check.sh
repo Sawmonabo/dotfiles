@@ -34,8 +34,8 @@ while IFS= read -r -d '' script; do
 done < <(find "$repo/home/.chezmoiscripts" -name '*.sh.tmpl' -print0)
 
 echo "==> [$role/$mode] leak checks"
-if grep -rIl -e '/home/sabossedgh' -e '/Users/sawmonabo' "$dest"; then
-    echo "LEAK: hardcoded home directory in rendered output"; fail=1
+if grep -rIln -e '/home/sabossedgh' -e '/Users/sawmonabo' "$repo/home"; then
+    echo "LEAK: hardcoded home directory in a source template"; fail=1
 fi
 if [ "$role" = personal ]; then
     if grep -rIl -e fortressinfosec -e dispatch-atlassian -e dispatch-gitlab -e coderabbit -e promptctl "$dest"; then
