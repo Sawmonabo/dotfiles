@@ -1,16 +1,43 @@
+{{- /*
+Machine role decides which identity, secrets, and tool configuration deploy.
+  personal: home projects only (~/dev). No employer tooling, no work tokens.
+  work:     employer projects only (~/repos). Work MCP servers and hooks.
+  both:     one machine for both; git identity switches per directory.
+Answers persist in the local chezmoi.toml, never in the repo.
+*/ -}}
+{{- $role := promptChoiceOnce . "machine_role" "Machine role" (list "personal" "work" "both") "personal" -}}
+{{- $hasWork := or (eq $role "work") (eq $role "both") -}}
+{{- $hasPersonal := or (eq $role "personal") (eq $role "both") -}}
+{{- /* WSL detection. .chezmoi.kernel is an empty map on macOS, so guard the key. */ -}}
+{{- $isWsl := false -}}
+{{- if eq .chezmoi.os "linux" -}}
+{{-   if hasKey .chezmoi.kernel "osrelease" -}}
+{{-     if .chezmoi.kernel.osrelease | lower | contains "microsoft" -}}
+{{-       $isWsl = true -}}
+{{-     end -}}
+{{-   end -}}
+{{- end -}}
 sourceDir = "{{ .chezmoi.homeDir }}/dev/dotfiles"
 
 [data]
+    machine_role = "{{ $role }}"
+    has_work = {{ $hasWork }}
+    has_personal = {{ $hasPersonal }}
+    is_wsl = {{ $isWsl }}
     name = "{{ promptStringOnce . "name" "Git user name" }}"
-    email = "{{ promptStringOnce . "email" "Git default email (all repos unless overridden)" }}"
-    personal_email = "{{ promptStringOnce . "personal_email" "Git personal email (for ~/dev/ repos)" }}"
+    email = "{{ promptStringOnce . "email" "Git default email (every repo without an override)" }}"
+{{- if eq $role "both" }}
+    personal_email = "{{ promptStringOnce . "personal_email" "Git personal email (repos under ~/dev/)" }}"
+    work_email = "{{ promptStringOnce . "work_email" "Git work email (repos under ~/repos/ and ~/work/)" }}"
+{{- end }}
     editor = "{{ promptChoiceOnce . "editor" "Preferred editor" (list "code" "vim") "code" }}"
-    versions_mode = "{{ promptChoiceOnce . "versions_mode" "Install pinned or latest tool versions" (list "pinned" "latest") }}"
+    versions_mode = "{{ promptChoiceOnce . "versions_mode" "Install pinned or latest tool versions" (list "pinned" "latest") "pinned" }}"
+{{- if $hasWork }}
     # Secrets: stored only in the local chezmoi.toml on this machine, never in the repo
     jira_api_token = "{{ promptStringOnce . "jira_api_token" "Jira API token (for Codex MCP; stored locally only)" }}"
     gitlab_token = "{{ promptStringOnce . "gitlab_token" "GitLab token (for Codex MCP; stored locally only)" }}"
-{{- if eq .chezmoi.os "linux" }}
-{{-   if (.chezmoi.kernel.osrelease | lower | contains "microsoft") }}
+{{- end }}
+{{- if $isWsl }}
 {{/*
     WSL VM sizing defaults are derived from the *Windows host* (inside WSL,
     nproc and /proc/meminfo only report the VM's current cap, not the laptop).
@@ -18,20 +45,19 @@ sourceDir = "{{ .chezmoi.homeDir }}/dev/dotfiles"
     swap = memory/6. Each is a prompt-once with that default, so a machine can
     still override (answers persist in the local chezmoi.toml, never the repo).
 */}}
-{{-     $hostGB := 0 }}
-{{-     $hostCPU := 0 }}
-{{-     if lookPath "powershell.exe" }}
-{{-       $hostGB = output "powershell.exe" "-NoProfile" "-Command" "[int][math]::Ceiling((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory/1GB)" | trim | int }}
-{{-       $hostCPU = output "powershell.exe" "-NoProfile" "-Command" "(Get-CimInstance Win32_ComputerSystem).NumberOfLogicalProcessors" | trim | int }}
-{{-     end }}
-{{-     $memGB := 8 }}
-{{-     $cpus := 4 }}
-{{-     if gt $hostGB 0 }}{{ $memGB = div (mul $hostGB 3) 4 }}{{ end }}
-{{-     if gt $hostCPU 0 }}{{ $cpus = max 2 (div (mul $hostCPU 2) 3) }}{{ end }}
-{{-     $swapGB := max 2 (div $memGB 6) }}
+{{-   $hostGB := 0 }}
+{{-   $hostCPU := 0 }}
+{{-   if lookPath "powershell.exe" }}
+{{-     $hostGB = output "powershell.exe" "-NoProfile" "-Command" "[int][math]::Ceiling((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory/1GB)" | trim | int }}
+{{-     $hostCPU = output "powershell.exe" "-NoProfile" "-Command" "(Get-CimInstance Win32_ComputerSystem).NumberOfLogicalProcessors" | trim | int }}
+{{-   end }}
+{{-   $memGB := 8 }}
+{{-   $cpus := 4 }}
+{{-   if gt $hostGB 0 }}{{ $memGB = div (mul $hostGB 3) 4 }}{{ end }}
+{{-   if gt $hostCPU 0 }}{{ $cpus = max 2 (div (mul $hostCPU 2) 3) }}{{ end }}
+{{-   $swapGB := max 2 (div $memGB 6) }}
     wsl_memory = "{{ promptStringOnce . "wsl_memory" (printf "WSL memory limit (host has %dGB; default 75%%)" $hostGB) (printf "%dGB" $memGB) }}"
     wsl_processors = {{ promptIntOnce . "wsl_processors" (printf "WSL vCPUs (host has %d; default 2/3)" $hostCPU) $cpus }}
     wsl_swap = "{{ promptStringOnce . "wsl_swap" "WSL swap size (default memory/6)" (printf "%dGB" $swapGB) }}"
-    restart_wsl_path = {{ promptStringOnce . "restart_wsl_path" "RestartWSL scripts path, relative to Windows home or full path (e.g. Desktop/RestartWSL)" | quote }}
-{{-   end }}
+    restart_wsl_path = {{ promptStringOnce . "restart_wsl_path" "RestartWSL scripts path (relative to Windows home or a full path e.g. Desktop/RestartWSL)" | quote }}
 {{- end }}
