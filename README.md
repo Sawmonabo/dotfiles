@@ -9,6 +9,7 @@ Cross-platform dotfiles managed with [chezmoi](https://www.chezmoi.io/). Support
 - [What Gets Installed](#what-gets-installed)
 - [Daily Usage](#daily-usage)
 - [How Syncing Works](#how-syncing-works)
+- [Machine Role](#machine-role)
 - [Customization](#customization)
 - [Repo Structure](#repo-structure)
 - [Platform Docs](#platform-docs)
@@ -21,8 +22,10 @@ Cross-platform dotfiles managed with [chezmoi](https://www.chezmoi.io/). Support
 sh -c "$(curl -fsLS get.chezmoi.io)" && chezmoi init --apply Sawmonabo/dotfiles
 ```
 
-Chezmoi will prompt for your name, emails, preferred editor, and whether to
-install **pinned** or **latest** tool versions, then automatically:
+Chezmoi will prompt for your name, git email, machine role (personal, work, or
+both), preferred editor, and pinned or latest tool versions. A machine role of
+`both` also asks for the personal and work emails; any role that includes work
+asks for the Jira and GitLab tokens. Then it automatically:
 
 1. Detect your OS
 2. Run the platform bootstrap (install bat, oh-my-posh, Nerd Font, etc.)
@@ -34,7 +37,7 @@ install **pinned** or **latest** tool versions, then automatically:
 # 1. Install chezmoi
 sh -c "$(curl -fsLS get.chezmoi.io)" -- -b ~/.local/bin
 
-# 2. Init without applying (prompts for name, email, editor)
+# 2. Init without applying (prompts for name, email, machine role, editor)
 chezmoi init Sawmonabo/dotfiles
 
 # 3. Preview what would change
@@ -51,7 +54,8 @@ chezmoi apply -v
 | `.bashrc` | | x | x | |
 | `.zshrc` | x | | | |
 | `.gitconfig` | x | x | x | |
-| `.gitconfig-personal` | x | x | x | |
+| `.gitconfig-personal` (role `both`) | x | x | x | |
+| `.gitconfig-work` (role `both`) | x | x | x | |
 | `.claude/settings.json` | x | x | x | |
 | Oh My Posh theme | x | x | x | x |
 | Windows Terminal settings | | | | x |
@@ -154,13 +158,25 @@ Chezmoi does **not** auto-sync. Every step is manual and deliberate:
 
 This keeps you in control — no half-finished changes get pushed, and no unexpected overwrites happen on other machines.
 
+## Machine Role
+
+`chezmoi init` asks once whether a machine is `personal`, `work`, or `both`.
+
+| Role | Git identity | Codex trust roots | Work MCP servers, CodeRabbit, prompt hook |
+|---|---|---|---|
+| `personal` | `.email` everywhere | `~/dev` | not deployed |
+| `work` | `.email` everywhere | `~/repos` | deployed |
+| `both` | `~/dev/` personal, `~/repos/` and `~/work/` work | `~/dev` and `~/repos` | deployed |
+
+Change it later with `chezmoi init` after editing `~/.config/chezmoi/chezmoi.toml`, or delete the `machine_role` line to be prompted again.
+
 ## Customization
 
 ### Git identity per directory
 
-`.gitconfig` uses your default email (`.email`) globally. Repos under `~/dev/` automatically switch to your personal email via Git's `includeIf` and `.gitconfig-personal`.
+`.gitconfig` uses your default email (`.email`) globally. On a `both` machine it also emits Git `includeIf` rules: repos under `~/dev/` switch to your personal email (`.gitconfig-personal`) and repos under `~/repos/` and `~/work/` switch to your work email (`.gitconfig-work`). On a `personal` or `work` machine there are no `includeIf` rules and neither file is deployed.
 
-To change either email, re-run `chezmoi init` or edit the source:
+To change any email, re-run `chezmoi init` or edit the source:
 
 ```bash
 chezmoi edit ~/.gitconfig-personal
@@ -187,6 +203,7 @@ chezmoi apply
 ├── .chezmoiroot                                            # One line: "home" — the deploy boundary
 ├── .github/workflows/ci.yml                                # Render + lint + secret-scan
 ├── docs/                                                    # Platform documentation
+├── scripts/                                                 # render-check.sh, scratch-init.sh (dev tools)
 └── home/                                                    # Mirrors ~ — everything here can deploy
     ├── .chezmoi.toml.tmpl                                   # Interactive setup prompts
     ├── .chezmoiignore                                       # OS-conditional ignores
@@ -194,15 +211,18 @@ chezmoi apply
     │   ├── versions.toml                                    # Pinned tool/runtime versions
     │   └── packages.toml                                    # apt package names + VS Code extension IDs
     ├── .chezmoitemplates/
-    │   └── nvm-load.sh                                      # Shared nvm guard+source fragment
+    │   ├── nvm-load.sh                                      # Shared nvm guard+source fragment
+    │   └── bw-wrapper.sh                                    # Shared Bitwarden unlock/lock wrapper
     ├── .chezmoiscripts/
     │   ├── linux/                                           # run_once_before_00-packages.sh.tmpl, etc.
     │   ├── darwin/                                          # run_once_before_00-packages.sh.tmpl, etc.
-    │   └── wsl/                                             # run_once_before_00-packages-windows.sh.tmpl, etc.
+    │   ├── wsl/                                             # run_once_before_00-packages-windows.sh.tmpl, etc.
+    │   └── shared/                                          # run_onchange_after_40-tmux-plugins.sh.tmpl
     ├── private_dot_bashrc.tmpl                              # → ~/.bashrc (Linux/WSL)
     ├── dot_zshrc.tmpl                                       # → ~/.zshrc (macOS)
     ├── dot_gitconfig.tmpl                                   # → ~/.gitconfig (all)
-    ├── dot_gitconfig-personal.tmpl                          # → ~/.gitconfig-personal (all)
+    ├── dot_gitconfig-personal.tmpl                          # → ~/.gitconfig-personal (machine_role=both)
+    ├── dot_gitconfig-work.tmpl                              # → ~/.gitconfig-work (machine_role=both)
     ├── dot_claude/                                          # → ~/.claude/
     ├── dot_codex/                                           # → ~/.codex/
     └── dot_config/oh-my-posh/catppuccin_mocha.omp.json      # → ~/.config/oh-my-posh/

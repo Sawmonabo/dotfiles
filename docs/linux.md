@@ -72,7 +72,7 @@ The `.bashrc` includes:
 - Color support via `dircolors`
 - PATH setup for `~/.local/bin`, cargo, nvm, bun
 - Bash completion
-- `code()` wrapper with workspace routing (VS Code)
+- Work-only aliases (`create-spec`, promptctl) render only when `machine_role` is `work` or `both`
 - Sources `~/.bash_aliases` if it exists (not managed by chezmoi)
 
 ## Font Installation

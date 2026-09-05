@@ -65,7 +65,7 @@ macOS uses zsh as the default shell. The `.zshrc` includes:
 - Aliases (`ls`, `cat`→bat, etc.)
 - PATH setup for Homebrew, cargo, nvm, bun
 - Completion via `compinit`
-- `code()` wrapper with workspace routing (VS Code)
+- `~/.zshrc.local` is sourced last and is not managed by chezmoi; put machine-specific aliases and installer blocks there
 
 ### `.zprofile` vs `.zshrc`
 
