@@ -56,10 +56,16 @@ source ~/.bashrc
 
 | Tool | Method | Notes |
 |------|--------|-------|
-| bat | `cargo install bat` | apt version is outdated, cargo gets latest |
+| build-essential, curl, unzip, git | apt | Base toolchain; a fresh WSL image has no C compiler |
+| bat | apt, `cargo install bat` as fallback | |
+| fd | apt `fd-find`, symlinked `fdfind` → `fd` in `~/.local/bin` | `cargo install fd-find` as fallback |
 | oh-my-posh | curl install script → `~/.local/bin/` | Not in apt repos |
 | oh-my-posh themes | GitHub release zip → `~/.cache/oh-my-posh/themes/` | Bundled theme collection |
 | JetBrains Mono Nerd Font | GitHub release → `~/.local/share/fonts/` | Required for prompt icons |
+| gh | GitHub release static binary → `~/.local/bin/` | No sudo, always current |
+| bitwarden-cli | Official static binary → `~/.local/bin/bw` | **Work machines only** (`machine_role` work or both) |
+| tmux | apt | |
+| TPM | git clone → `~/.tmux/plugins/tpm` | Plugins installed by the shared `40-tmux-plugins` script |
 
 If `cargo` is not found, the bootstrap installs `rustup` first.
 

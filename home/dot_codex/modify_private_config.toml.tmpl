@@ -172,6 +172,15 @@ def format_value(value, path):
         return repr(value)
     if isinstance(value, (datetime.datetime, datetime.date, datetime.time)):
         return value.isoformat()
+    if isinstance(value, list):
+        # Arrays of scalars, or arrays of inline tables (Codex hook rules).
+        return "[" + ", ".join(format_value(item, path + ("[]",)) for item in value) + "]"
+    if isinstance(value, dict):
+        # Inline table, used only when a dict sits inside an array.
+        return "{ " + ", ".join(
+            "{} = {}".format(format_key(key), format_value(item, path + (key,)))
+            for key, item in value.items()
+        ) + " }"
     raise TypeError(
         "cannot serialise Codex-owned value at {}: unsupported type {}".format(
             ".".join(path), type(value).__name__
@@ -247,8 +256,13 @@ def main():
     raw = sys.stdin.buffer.read()
     try:
         document = tomllib.loads(raw.decode("utf-8")) if raw.strip() else {}
-    except (UnicodeDecodeError, tomllib.TOMLDecodeError):
-        # An unreadable existing file has nothing worth preserving.
+    except (UnicodeDecodeError, tomllib.TOMLDecodeError) as error:
+        # Nothing can be preserved from an unreadable file. Say so loudly, but
+        # do not abort: a corrupt config.toml must not block the whole apply.
+        sys.stderr.write(
+            "modify_config.toml: existing ~/.codex/config.toml is not valid TOML "
+            "({}); writing the managed body only, Codex-owned tables dropped\n".format(error)
+        )
         document = {}
 
     output = inject_marketplace_keys(MANAGED, marketplace_keys(document))

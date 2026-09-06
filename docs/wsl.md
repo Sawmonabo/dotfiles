@@ -26,7 +26,7 @@ sh -c "$(curl -fsLS get.chezmoi.io)" && chezmoi init --apply Sawmonabo/dotfiles
 
 This runs **two** bootstrap scripts on WSL:
 
-1. `home/.chezmoiscripts/linux/run_once_before_00-packages.sh.tmpl` — bat, oh-my-posh, fonts for Linux
+1. `home/.chezmoiscripts/linux/run_once_before_00-packages.sh.tmpl` — base toolchain, bat, fd, oh-my-posh + themes, Nerd Font, gh, tmux, TPM (and bitwarden-cli on work machines) for Linux
 2. `home/.chezmoiscripts/wsl/run_once_before_00-packages-windows.sh.tmpl` — oh-my-posh.exe, fonts, Windows Terminal settings, PowerShell profile
 
 ### Step-by-step install

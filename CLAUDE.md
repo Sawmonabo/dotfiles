@@ -36,7 +36,7 @@ Within `home/`, chezmoi templates deploy to `~` on each platform using chezmoi's
 | `home/.chezmoidata/versions.toml` | (data) | Pinned tool/runtime versions used by `versions_mode=pinned` |
 | `home/.chezmoidata/packages.toml` | (data) | Recorded apt package names and VS Code extension IDs (manual reference, not scripted) |
 | `scripts/scratch-init.sh` | (dev tool) | Generates a throwaway `chezmoi.toml` for one role with every prompt answered; prompt-text keys must match `.chezmoi.toml.tmpl` |
-| `scripts/render-check.sh` | (dev tool) | Renders the whole tree for one role into a temp dir, lints scripts, checks for work/home-path leaks and the status line; what CI runs |
+| `scripts/render-check.sh` | (dev tool) | Renders the whole tree for one role into a temp dir, lints scripts, checks for work/home-path leaks and the status line; what CI runs. Optional third arg `wsl` fakes a WSL host and lints only, so the `wsl/` scripts get syntax coverage |
 | `.github/workflows/ci.yml` | (CI) | Renders every template (pinned and latest modes), syntax-checks and shellchecks the output, scans for secrets |
 
 ### Template variables
@@ -88,4 +88,4 @@ chezmoi apply
 
 Always run `chezmoi diff` before `chezmoi apply` to preview what will change. Be cautious with `run_once_before_` scripts — they execute once per machine and install system packages. CI (`.github/workflows/ci.yml`) renders every template in both `versions_mode` variants and lints the rendered scripts on every push and pull request, but does not apply anything.
 
-Run `scripts/render-check.sh <role> <mode>` locally before pushing; it is exactly what CI runs and never touches `~`. After pulling a change to `home/.chezmoi.toml.tmpl`, run `chezmoi init` (no apply) to answer any new prompt before `chezmoi diff`.
+Run `scripts/render-check.sh <role> <mode>` (and `scripts/render-check.sh work pinned wsl` when touching `wsl/`) locally before pushing; it is exactly what CI runs and never touches `~`. After pulling a change to `home/.chezmoi.toml.tmpl`, run `chezmoi init` (no apply) to answer any new prompt before `chezmoi diff`.

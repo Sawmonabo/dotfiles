@@ -1,8 +1,10 @@
 {{- /* Same hasKey fallback as .chezmoiignore: a chezmoi.toml generated before
-       the role keys existed must not abort here either. Missing keys mean the
-       safest shape, personal, which removes every work-only file. */ -}}
-{{- $hasWork := false }}{{- if hasKey . "has_work" }}{{ $hasWork = .has_work }}{{ end }}
-{{- $role := "personal" }}{{- if hasKey . "machine_role" }}{{ $role = .machine_role }}{{ end -}}
+       the role keys existed must not abort here either. Unlike .chezmoiignore
+       (which falls back to personal so nothing work-only DEPLOYS), removal
+       falls back to "both" so nothing is DELETED until chezmoi init has been
+       re-run and the role is known. */ -}}
+{{- $hasWork := true }}{{- if hasKey . "has_work" }}{{ $hasWork = .has_work }}{{ end }}
+{{- $role := "both" }}{{- if hasKey . "machine_role" }}{{ $role = .machine_role }}{{ end -}}
 
 .claude/scripts/statusline.sh
 {{- /* Role downgrade cleanup: files a previous, wider role deployed must go. */}}
