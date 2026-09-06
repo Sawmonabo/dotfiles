@@ -3,10 +3,18 @@
 # pair into a throwaway destination, lint every script, and assert that no
 # work-only or machine-specific content leaks. Used by CI on Linux and macOS
 # and locally: scripts/render-check.sh personal pinned
+#
+# A third argument of "wsl" instead fakes a WSL host: the scratch config gets
+# is_wsl = true plus the sizing answers that only a real WSL host would prompt
+# for, and only the init and script-lint stages run. Apply and the leak checks
+# are skipped because they assume the host really is the machine being checked.
 set -euo pipefail
 
-role=${1:?usage: render-check.sh <personal|work|both> <pinned|latest>}
-mode=${2:?usage: render-check.sh <personal|work|both> <pinned|latest>}
+usage='usage: render-check.sh <personal|work|both> <pinned|latest> [wsl]'
+role=${1:?$usage}
+mode=${2:?$usage}
+extra=${3:-}
+if [ -n "$extra" ] && [ "$extra" != wsl ]; then echo "$usage" >&2; exit 2; fi
 repo=$(cd "$(dirname "$0")/.." && pwd)
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp" "${config:-}"' EXIT
@@ -16,10 +24,23 @@ fail=0
 
 echo "==> [$role/$mode] init: every prompt must be answerable non-interactively"
 config=$("$repo/scripts/scratch-init.sh" "$role" "$mode")
+if [ "$extra" = wsl ]; then
+    # The WSL sizing prompts only fire on a real WSL host, so answer them here.
+    sed -i.bak 's/^\( *\)is_wsl = false$/\1is_wsl = true/' "$config" && rm -f "$config.bak"
+    cat >> "$config" <<'WSLDATA'
+    wsl_memory = "8GB"
+    wsl_processors = 4
+    wsl_swap = "2GB"
+    restart_wsl_path = "Desktop/RestartWSL"
+WSLDATA
+    grep -q 'is_wsl = true' "$config" || { echo "WSL FAIL: could not force is_wsl in $config"; exit 1; }
+fi
 chez=(chezmoi --config "$config" --source "$repo" --destination "$dest")
 
-echo "==> [$role/$mode] apply into $dest (scripts rendered, never run)"
-"${chez[@]}" apply --exclude scripts
+if [ "$extra" != wsl ]; then
+    echo "==> [$role/$mode] apply into $dest (scripts rendered, never run)"
+    "${chez[@]}" apply --exclude scripts
+fi
 
 echo "==> [$role/$mode] lint scripts"
 while IFS= read -r -d '' script; do
@@ -28,10 +49,18 @@ while IFS= read -r -d '' script; do
         echo "RENDER FAIL: $script"; fail=1; continue
     fi
     if [ -s "$out" ]; then
+        echo "    linting ${script#"$repo"/}"
         bash -n "$out" || { echo "SYNTAX FAIL: $script"; fail=1; }
         shellcheck -S warning "$out" || { echo "SHELLCHECK FAIL: $script"; fail=1; }
     fi
-done < <(find "$repo/home/.chezmoiscripts" -name '*.sh.tmpl' -print0)
+done < <(find "$repo/home/.chezmoiscripts" -name '*.sh.tmpl' -print0 \
+    ; [ "$extra" = wsl ] && printf '%s\0' "$repo/home/dot_local/bin/executable_win-browser.tmpl")
+
+if [ "$extra" = wsl ]; then
+    if [ "$fail" -ne 0 ]; then echo "FAILED [$role/$mode/wsl-lint]"; exit 1; fi
+    echo "OK [$role/$mode/wsl-lint]"
+    exit 0
+fi
 
 echo "==> [$role/$mode] leak checks"
 if grep -rIln -e '/home/sabossedgh' -e '/Users/sawmonabo' "$repo/home"; then

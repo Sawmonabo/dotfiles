@@ -12,10 +12,18 @@ jobs:
         os: [ubuntu-latest, macos-latest]
         machine_role: [personal, work, both]
         versions_mode: [pinned, latest]
+        extra: ['']
         exclude:
           # versions_mode only affects the Linux runtime scripts
           - os: macos-latest
             versions_mode: latest
+        include:
+          # The wsl/ scripts render empty on every other host, so lint them once
+          # against a config that claims to be WSL.
+          - os: ubuntu-latest
+            machine_role: work
+            versions_mode: pinned
+            extra: wsl
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -29,7 +37,7 @@ jobs:
           sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Render, lint, and leak-check
-        run: scripts/render-check.sh "${{ matrix.machine_role }}" "${{ matrix.versions_mode }}"
+        run: scripts/render-check.sh "${{ matrix.machine_role }}" "${{ matrix.versions_mode }}" "${{ matrix.extra }}"
   secret-scan:
     runs-on: ubuntu-latest
     steps:
