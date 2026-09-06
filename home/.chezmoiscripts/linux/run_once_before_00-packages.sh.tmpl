@@ -1,6 +1,7 @@
 {{ if eq .chezmoi.os "linux" -}}
 #!/bin/bash
-# Bootstrap script for Linux/WSL — installs bat, oh-my-posh, JetBrains Mono Nerd Font, tmux, gh
+# Bootstrap script for Linux/WSL — installs bat, fd, oh-my-posh, JetBrains Mono Nerd Font, tmux, TPM, gh
+# (and bitwarden-cli on work machines)
 set -euo pipefail
 
 echo "==> Linux/WSL bootstrap starting..."
@@ -154,6 +155,23 @@ else
     echo "==> gh already installed ($(gh --version | head -1)), skipping."
 fi
 
+{{ if .has_work -}}
+# --- Bitwarden CLI (work machines only; the bw wrapper in .bashrc expects it) ---
+# Same per-user, no-sudo shape as gh above; unzip came from the apt line at the top.
+if ! command -v bw &>/dev/null && [ ! -x "$HOME/.local/bin/bw" ]; then
+    echo "==> Installing Bitwarden CLI to ~/.local/bin..."
+    BW_TMP=$(mktemp -d)
+    curl -fsSL "https://bitwarden.com/download/?app=cli&platform=linux" -o "$BW_TMP/bw.zip"
+    unzip -oq "$BW_TMP/bw.zip" -d "$BW_TMP"
+    mkdir -p "$HOME/.local/bin"
+    install -m 0755 "$BW_TMP/bw" "$HOME/.local/bin/bw"
+    rm -rf "$BW_TMP"
+    echo "    bw installed: $("$HOME/.local/bin/bw" --version)"
+else
+    echo "==> Bitwarden CLI already installed, skipping."
+fi
+
+{{ end -}}
 # --- tmux ---
 if ! command -v tmux &>/dev/null; then
     echo "==> Installing tmux..."
