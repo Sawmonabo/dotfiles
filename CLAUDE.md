@@ -19,7 +19,7 @@ Within `home/`, chezmoi templates deploy to `~` on each platform using chezmoi's
 | `home/dot_gitconfig-personal.tmpl` | `~/.gitconfig-personal` | Personal email for repos under `~/dev/`; only when `machine_role=both` |
 | `home/dot_gitconfig-work.tmpl` | `~/.gitconfig-work` | Work email for repos under `~/repos/`; only when `machine_role=both` |
 | `home/dot_claude/` | `~/.claude/` | `CLAUDE.md` and `private_settings.json` |
-| `home/dot_codex/` | `~/.codex/` | `AGENTS.md.tmpl`, `private_config.toml.tmpl`, `private_hooks.json.tmpl` (hooks only when `has_work`) |
+| `home/dot_codex/` | `~/.codex/` | `AGENTS.md.tmpl`, `modify_private_config.toml.tmpl`, `private_hooks.json.tmpl` (hooks only when `has_work`). The config is a chezmoi `modify_` template: it renders to a Python script that merges the managed body with the Codex-owned tables read from the existing `~/.codex/config.toml`, so Codex's own runtime state survives an apply. |
 | `home/dot_config/` | `~/.config/` | `oh-my-posh/catppuccin_mocha.omp.json` (theme, all platforms) and `tmux/tmux.conf` |
 | `home/.chezmoiscripts/linux/run_once_before_00-packages.sh.tmpl` | (run script) | Linux/WSL bootstrap: build-essential, bat, fd (apt `fd-find`, symlinked `fdfind`→`fd` in ~/.local/bin), oh-my-posh + themes, Nerd Font, gh (upstream static binary to ~/.local/bin, no sudo), tmux, TPM |
 | `home/.chezmoiscripts/linux/run_once_after_10-runtime-managers.sh.tmpl` | (run script) | Installs nvm, uv, rustup, bun, Go managers |

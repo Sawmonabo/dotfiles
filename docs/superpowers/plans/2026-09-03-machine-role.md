@@ -442,6 +442,7 @@ This is the largest change. The Codex config becomes a template gated on `has_pe
 
 **Files:**
 - Modify: `home/dot_codex/private_config.toml.tmpl` (whole file)
+  - Post-implementation note: this file later became `home/dot_codex/modify_private_config.toml.tmpl`, a chezmoi `modify_` template (a Python script that merges the managed body below with the Codex-owned tables read from the existing file). The managed TOML body is unchanged from the block in Step 1.
 - Rename + modify: `home/dot_codex/AGENTS.md` → `home/dot_codex/AGENTS.md.tmpl`
 - Rename + modify: `home/dot_codex/private_hooks.json` → `home/dot_codex/private_hooks.json.tmpl`
 

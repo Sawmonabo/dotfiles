@@ -1,0 +1,269 @@
+#!/usr/bin/env python3
+# Rendered by chezmoi as a modify_ script for ~/.codex/config.toml.
+# Reads the existing file on stdin and writes the new file to stdout.
+"""Merge the chezmoi-managed Codex config with the parts Codex owns.
+
+The MANAGED body below is authoritative. A handful of tables are rewritten by
+Codex itself at runtime; those are read back from the existing file and
+re-emitted so `chezmoi diff` stays quiet instead of proposing to delete them.
+"""
+
+import datetime
+import re
+import sys
+import tomllib
+
+MANAGED = r"""
+# :schema https://developers.openai.com/codex/config-schema.json
+# Rendered for machine_role = {{ .machine_role }}.
+# Managed by chezmoi as a modify template: the managed body below is
+# authoritative, while the tables Codex rewrites itself (notice.model_migrations,
+# tui.model_availability_nux, hooks, and the last_updated/last_revision keys
+# under [marketplaces]) are carried over from the existing file so
+# `chezmoi diff` stays quiet. The static marketplace source IS managed because
+# the deep-research plugin cannot resolve without it.
+
+model = "gpt-6-astra"
+model_reasoning_effort = "xhigh"
+plan_mode_reasoning_effort = "max"
+sandbox_mode = "danger-full-access"
+approval_policy = "never"
+approvals_reviewer = "user"
+web_search = "live"
+project_doc_max_bytes = 65536
+service_tier = "default"
+personality = "pragmatic"
+
+[features]
+shell_tool = true
+multi_agent = true
+prevent_idle_sleep = true
+terminal_resize_reflow = true
+memories = true
+
+[agents]
+max_depth = 2
+max_threads = 20
+job_max_runtime_seconds = 3600
+
+# Full access on every machine (user decision 2026-09-06): no sandbox, no approval prompts.
+# Trust is granted per root, not per repository:
+# everything under ~/dev is personal, everything under ~/repos is work.
+{{- if .has_personal }}
+
+[projects."{{ .chezmoi.homeDir }}/dev"]
+trust_level = "trusted"
+{{- end }}
+{{- if .has_work }}
+
+[projects."{{ .chezmoi.homeDir }}/repos"]
+trust_level = "trusted"
+{{- end }}
+
+
+[notice]
+hide_full_access_warning = true
+hide_rate_limit_model_nudge = true
+
+[tools]
+web_search = { context_size = "high" }
+
+[tui]
+status_line = ["context-remaining", "model-with-reasoning", "current-dir", "git-branch", "five-hour-limit", "weekly-limit", "used-tokens"]
+pet = "disabled"
+status_line_use_colors = true
+
+[mcp_servers.openaiDeveloperDocs]
+url = "https://developers.openai.com/mcp"
+
+[mcp_servers.openaiDeveloperDocs.tools.search_openai_docs]
+approval_mode = "approve"
+
+[mcp_servers.openaiDeveloperDocs.tools.fetch_openai_doc]
+approval_mode = "approve"
+
+[plugins."github@openai-curated"]
+enabled = true
+
+[plugins."gmail@openai-curated"]
+enabled = true
+
+[plugins."superpowers@openai-curated"]
+enabled = true
+
+[plugins."deep-research@sidekick-skills"]
+enabled = true
+
+[marketplaces.sidekick-skills]
+source_type = "git"
+source = "https://github.com/Sawmonabo/sidekick-skills.git"
+ref = "marketplace"
+
+[profiles.sidekick_implementation]
+approvals_reviewer = "user"
+
+[profiles.sidekick_implementation.features]
+js_repl = false
+guardian_approval = false
+prevent_idle_sleep = true
+{{- if .has_work }}
+
+# ---------------------------------------------------------------------------
+# Work only: employer MCP servers, review tooling, and the prompt-prefix hook.
+# ---------------------------------------------------------------------------
+
+[plugins."coderabbit@openai-curated"]
+enabled = true
+
+[mcp_servers.dispatch-atlassian]
+enabled = false
+command = "{{ .chezmoi.homeDir }}/.nvm/versions/node/v{{ .versions.node_default }}/bin/node"
+args = ["{{ .chezmoi.homeDir }}/repos/ai-devtools/dispatch-atlassian/dist/index.js"]
+
+[mcp_servers.dispatch-atlassian.env]
+JIRA_BASE_URL = "https://fortressinfosec.atlassian.net"
+JIRA_EMAIL = "{{ if eq .machine_role "both" }}{{ .work_email }}{{ else }}{{ .email }}{{ end }}"
+JIRA_API_TOKEN = "{{ .jira_api_token }}"
+{{ range list "fetch_attachments" "fetch_changelog" "fetch_comments" "fetch_confluence_page" "fetch_epic_context" "fetch_ticket" "gather_full_context" "search_confluence" "search_tickets" }}
+[mcp_servers.dispatch-atlassian.tools.{{ . }}]
+approval_mode = "approve"
+{{ end }}
+[mcp_servers.dispatch-gitlab]
+enabled = false
+command = "{{ .chezmoi.homeDir }}/.nvm/versions/node/v{{ .versions.node_default }}/bin/node"
+args = ["{{ .chezmoi.homeDir }}/repos/ai-devtools/dispatch-gitlab/dist/index.js"]
+
+[mcp_servers.dispatch-gitlab.env]
+GITLAB_URL = "https://gitlab.com/fortressinfosec"
+GITLAB_TOKEN = "{{ .gitlab_token }}"
+
+[mcp_servers.dispatch-gitlab.tools.get_linked_mrs]
+approval_mode = "approve"
+{{- end }}
+"""[1:]
+
+# Tables Codex rewrites itself and that must survive an apply, as paths into
+# the parsed document. Each is emitted verbatim in the preserved block below.
+PRESERVED_TABLES = (
+    ("notice", "model_migrations"),
+    ("tui", "model_availability_nux"),
+    ("hooks",),
+)
+# Per-marketplace bookkeeping keys Codex stamps onto its own marketplace tables.
+PRESERVED_MARKETPLACE_KEYS = ("last_updated", "last_revision")
+
+DELIMITER = "# --- preserved from the existing file (Codex-owned) ---"
+BARE_KEY = re.compile(r"^[A-Za-z0-9_-]+$")
+MARKETPLACE_HEADER = re.compile(r"^\[marketplaces\.(.+)\]\s*$")
+
+
+def format_key(key):
+    return key if BARE_KEY.match(key) else '"{}"'.format(key.replace('\\', '\\\\').replace('"', '\\"'))
+
+
+def format_value(value, path):
+    # bool first: bool is a subclass of int.
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, str):
+        return '"{}"'.format(value.replace('\\', '\\\\').replace('"', '\\"'))
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, float):
+        return repr(value)
+    if isinstance(value, (datetime.datetime, datetime.date, datetime.time)):
+        return value.isoformat()
+    raise TypeError(
+        "cannot serialise Codex-owned value at {}: unsupported type {}".format(
+            ".".join(path), type(value).__name__
+        )
+    )
+
+
+def render_table(header_path, table):
+    """Render one TOML table (and its sub-tables) as a list of lines."""
+    scalars = {key: value for key, value in table.items() if not isinstance(value, dict)}
+    subtables = {key: value for key, value in table.items() if isinstance(value, dict)}
+    lines = ["", "[{}]".format(".".join(format_key(part) for part in header_path))]
+    for key, value in scalars.items():
+        lines.append("{} = {}".format(format_key(key), format_value(value, header_path + (key,))))
+    for key, value in subtables.items():
+        lines.extend(render_table(header_path + (key,), value))
+    return lines
+
+
+def lookup(document, path):
+    node = document
+    for part in path:
+        if not isinstance(node, dict) or part not in node:
+            return None
+        node = node[part]
+    return node if isinstance(node, dict) and node else None
+
+
+def marketplace_keys(document):
+    """{marketplace name: {key: value}} for the Codex-stamped bookkeeping keys."""
+    marketplaces = document.get("marketplaces")
+    if not isinstance(marketplaces, dict):
+        return {}
+    found = {}
+    for name, table in marketplaces.items():
+        if not isinstance(table, dict):
+            continue
+        kept = {key: table[key] for key in PRESERVED_MARKETPLACE_KEYS if key in table}
+        if kept:
+            found[name] = kept
+    return found
+
+
+def inject_marketplace_keys(managed, per_marketplace):
+    """Insert preserved keys under the managed [marketplaces.<name>] headers.
+
+    They cannot go in the appended block: TOML forbids reopening a table that
+    a header already declared, and dotted keys before the header collide with
+    it too. So they are written into the managed table itself, tagged with a
+    comment so their provenance is obvious.
+    """
+    if not per_marketplace:
+        return managed
+    out = []
+    for line in managed.split("\n"):
+        out.append(line)
+        match = MARKETPLACE_HEADER.match(line)
+        if not match:
+            continue
+        name = match.group(1).strip()
+        if len(name) > 1 and name[0] == name[-1] == '"':
+            name = name[1:-1]
+        for key, value in per_marketplace.get(name, {}).items():
+            out.append(
+                "{} = {}  # preserved (Codex-owned)".format(
+                    format_key(key), format_value(value, ("marketplaces", name, key))
+                )
+            )
+    return "\n".join(out)
+
+
+def main():
+    raw = sys.stdin.buffer.read()
+    try:
+        document = tomllib.loads(raw.decode("utf-8")) if raw.strip() else {}
+    except (UnicodeDecodeError, tomllib.TOMLDecodeError):
+        # An unreadable existing file has nothing worth preserving.
+        document = {}
+
+    output = inject_marketplace_keys(MANAGED, marketplace_keys(document))
+
+    preserved = []
+    for path in PRESERVED_TABLES:
+        table = lookup(document, path)
+        if table is not None:
+            preserved.extend(render_table(path, table))
+    if preserved:
+        output = output.rstrip("\n") + "\n\n" + DELIMITER + "\n".join(preserved) + "\n"
+
+    sys.stdout.write(output.rstrip("\n") + "\n")
+
+
+if __name__ == "__main__":
+    main()
