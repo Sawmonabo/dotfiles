@@ -19,11 +19,14 @@ failed=()
 {{ template "nvm-load.sh" }}
     nvm use default || failed+=(node-default-missing)
 {{- if eq $mode "pinned" }}
-    npm install -g "@openai/codex@{{ .versions.codex }}" || failed+=(codex)
-    npm install -g "@anthropic-ai/claude-code@{{ .versions.claude }}" || failed+=(claude)
+    # macOS: claude and codex usually come from their native installers in
+    # ~/.local/bin, which self-update. Only fall back to npm when absent, so
+    # the npm copy never shadows the native one on PATH.
+    command -v codex >/dev/null 2>&1 || npm install -g "@openai/codex@{{ .versions.codex }}" || failed+=(codex)
+    command -v claude >/dev/null 2>&1 || npm install -g "@anthropic-ai/claude-code@{{ .versions.claude }}" || failed+=(claude)
 {{- else }}
-    npm install -g @openai/codex@latest || failed+=(codex)
-    npm install -g @anthropic-ai/claude-code@latest || failed+=(claude)
+    command -v codex >/dev/null 2>&1 || npm install -g @openai/codex@latest || failed+=(codex)
+    command -v claude >/dev/null 2>&1 || npm install -g @anthropic-ai/claude-code@latest || failed+=(claude)
 {{- end }}
     corepack enable || failed+=(corepack)
 {{- range $tool, $ver := .corepack_globals }}
