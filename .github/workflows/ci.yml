@@ -36,7 +36,12 @@ jobs:
           fi
           # Pinned to the version this branch was verified against (-t is the
           # installer's tag flag); bump deliberately, not by drift.
-          sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin" -t v2.70.3
+          # Download the installer to a file with retries, then run it. The
+          # `sh -c "$(curl ...)"` form silently runs nothing when curl fails
+          # (seen as "chezmoi: command not found" one step later), so verify.
+          curl -fsLS --retry 5 --retry-all-errors --retry-delay 3 get.chezmoi.io -o "$RUNNER_TEMP/install-chezmoi.sh"
+          sh "$RUNNER_TEMP/install-chezmoi.sh" -b "$HOME/.local/bin" -t v2.70.3
+          "$HOME/.local/bin/chezmoi" --version
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Render, lint, and leak-check
         run: scripts/render-check.sh "${{ matrix.machine_role }}" "${{ matrix.versions_mode }}" "${{ matrix.extra }}"
