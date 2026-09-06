@@ -1,16 +1,31 @@
 {{ if eq .chezmoi.os "darwin" -}}
 #!/usr/bin/env bash
-# macOS bootstrap: Homebrew, then every formula and cask listed under
-# [packages.darwin] in .chezmoidata/packages.toml, then TPM and VS Code
-# extensions. Idempotent: brew skips anything already installed.
+# macOS bootstrap, before-phase: Homebrew, the command-line formulae under
+# [packages.darwin] in .chezmoidata/packages.toml, the oh-my-posh config
+# directory, and TPM. Deliberately limited to what the rc files and the
+# after-phase scripts depend on, because anything that fails here blocks the
+# apply before a single file deploys. GUI apps (casks) and VS Code extensions
+# are installed best-effort afterwards by 50-apps-and-extensions.
 set -euo pipefail
+
+# A bootstrap should not be the thing that updates Homebrew, cleans up, or nags.
+export HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 HOMEBREW_NO_ENV_HINTS=1
 
 echo "==> macOS bootstrap starting..."
 
 # --- Homebrew ---
-if ! command -v brew &>/dev/null; then
+# Probe the prefixes rather than `command -v brew`: on a Mac where Homebrew is
+# installed but not yet on PATH the installer would re-run and prompt for RETURN
+# and sudo. Download the installer to a file first, too — `bash -c "$(curl ...)"`
+# runs an empty string and exits 0 when the download fails, and the real error
+# then surfaces much later as `brew: command not found`.
+if [ ! -x /opt/homebrew/bin/brew ] && [ ! -x /usr/local/bin/brew ]; then
     echo "==> Installing Homebrew..."
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    installer="$(mktemp)"
+    curl -fsSL --retry 5 --retry-all-errors https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh -o "$installer"
+    [ -s "$installer" ] || { echo "Homebrew installer download failed" >&2; exit 1; }
+    /bin/bash "$installer"
+    rm -f "$installer"
 fi
 if [ -x /opt/homebrew/bin/brew ]; then
     eval "$(/opt/homebrew/bin/brew shellenv)"
@@ -19,74 +34,36 @@ elif [ -x /usr/local/bin/brew ]; then
 fi
 
 # --- Formulae (strict; idempotent: brew bundle skips what is installed) ---
+# Strict on purpose: this is the CLI set the rc files and the later scripts
+# assume, and a re-run resumes idempotently.
 # brew bundle resolves aliases (postgresql -> postgresql@N), so it does not
 # reinstall on every run the way a `brew list <alias>` probe would.
 # --no-upgrade: bootstrap installs what is missing, it never upgrades what is there.
 brewfile="$(mktemp)"
-caskfile="$(mktemp)"
-trap 'rm -f "$brewfile" "$caskfile"' EXIT
+trap 'rm -f "$brewfile"' EXIT
 {
-    echo 'tap "jandedobbeleer/oh-my-posh"'
 {{- range .packages.darwin.brew }}
     echo 'brew "{{ . }}"'
+{{- end }}
+{{- if .has_work }}
+    # Role-gated here so bitwarden-cli stays out of the role-neutral data lists.
+    # The bw wrapper in .zshrc expects it on work machines.
+    echo 'brew "bitwarden-cli"'
 {{- end }}
 } > "$brewfile"
 echo "==> Installing formulae from packages.toml..."
 brew bundle install --file="$brewfile" --no-upgrade
 
-# --- Casks (best effort) ---
-# brew bundle adopts an app that is already in /Applications only when its
-# version matches the cask. A hand-installed app at another version makes
-# that cask fail, and this script runs before any file deploys, so a cask
-# failure must not abort the apply. Report it and carry on.
-{
-{{- range .packages.darwin.cask }}
-    echo 'cask "{{ . }}"'
-{{- end }}
-} > "$caskfile"
-echo "==> Installing casks from packages.toml..."
-if ! brew bundle install --file="$caskfile" --no-upgrade; then
-    echo "    WARNING: one or more casks did not install (see above)." >&2
-    echo "    An app already in /Applications at a different version cannot be adopted." >&2
-    echo "    Let the app update itself, or replace it with the cask version, then run:" >&2
-    echo "        brew install --cask --adopt <name>      # same version: adopt in place" >&2
-    echo "        brew install --cask --force <name>      # replace with the cask version" >&2
-fi
-
-{{ if .has_work -}}
-# --- Bitwarden CLI (the bw wrapper in .zshrc expects it) ---
-# Role-gated, so it stays out of the role-neutral [packages.darwin] lists.
-if ! command -v bw &>/dev/null; then
-    echo "==> Installing Bitwarden CLI..."
-    brew install bitwarden-cli
-    echo "    bitwarden-cli installed."
-else
-    echo "==> Bitwarden CLI already installed, skipping."
-fi
-
-{{ end -}}
 # --- Oh My Posh config directory ---
 mkdir -p "$HOME/.config/oh-my-posh"
 
 # --- TPM (Tmux Plugin Manager) ---
+# Best effort: shared/40-tmux-plugins already skips gracefully when TPM is
+# absent, so a network hiccup here must not abort the apply.
 if [ ! -d "$HOME/.tmux/plugins/tpm" ]; then
     echo "==> Installing TPM..."
-    git clone https://github.com/tmux-plugins/tpm "$HOME/.tmux/plugins/tpm"
-fi
-
-# --- VS Code extensions ---
-if command -v code &>/dev/null; then
-    installed=$(code --list-extensions | tr '[:upper:]' '[:lower:]')
-    for extension in \
-{{- range .packages.vscode_extensions }}
-        "{{ . }}" \
-{{- end }}
-    ; do
-        # tr rather than ${extension,,}: macOS ships bash 3.2, which lacks case expansion
-        grep -qxF "$(tr '[:upper:]' '[:lower:]' <<<"$extension")" <<<"$installed" || code --install-extension "$extension" --force
-    done
-else
-    echo "    code CLI not on PATH; skipping VS Code extensions."
+    git clone https://github.com/tmux-plugins/tpm "$HOME/.tmux/plugins/tpm" \
+        || echo "    WARNING: TPM clone failed; shared/40-tmux-plugins will skip plugin install" >&2
 fi
 
 echo "==> macOS bootstrap complete."

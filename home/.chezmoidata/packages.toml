@@ -158,9 +158,12 @@ vscode_extensions = [
   "yoavbls.pretty-ts-errors",
 ]
 
-# Homebrew (macOS). Installed by .chezmoiscripts/darwin/00-packages.
+# Homebrew (macOS). brew = command-line formulae, installed strictly by
+# .chezmoiscripts/darwin/00-packages; cask = GUI apps, installed best-effort by
+# .chezmoiscripts/darwin/50-apps-and-extensions alongside vscode_extensions.
 # Names only; no versions. bat, fd, oh-my-posh, tmux, gh, and the Nerd Font are
-# listed here too so the bootstrap has one source of truth.
+# listed here too so the bootstrap has one source of truth. Role-neutral: the
+# work-only bitwarden-cli line is gated in the script, never here.
 # Must stay last in the file: a TOML sub-table header owns every key that
 # follows it, so apt and vscode_extensions have to be declared above it.
 [packages.darwin]
@@ -170,7 +173,6 @@ brew = [
   "bats-core",
   "bun",
   "chezmoi",
-  "docker",
   "fd",
   "gh",
   "git-filter-repo",
@@ -180,9 +182,9 @@ brew = [
   "golangci-lint",
   "goreleaser",
   "htop",
-  "jandedobbeleer/oh-my-posh/oh-my-posh",
   "jq",
   "lefthook",
+  "oh-my-posh",
   "postgresql",
   "ripgrep",
   "shellcheck",
