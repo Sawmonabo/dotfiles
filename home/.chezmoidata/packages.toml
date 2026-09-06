@@ -201,6 +201,5 @@ cask = [
   "font-jetbrains-mono-nerd-font",
   "google-chrome",
   "obsidian",
-  "ollama-app",
   "visual-studio-code",
 ]

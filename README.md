@@ -109,7 +109,7 @@ corepack pnpm/yarn, uv tools, cargo tools, go tools, and podman (via apt on
 Linux; macOS checks for the docker CLI that the docker-desktop cask supplies).
 
 The `versions_mode` prompt at `chezmoi init` chooses **pinned** (exact recorded
-versions) or **latest** (newest in each recorded line). Re-run `chezmoi init`
+versions) or **latest** (one newest Node, one newest Python, Rust stable, newest tools; other versions are one `nvm install` / `uv python install` away). Re-run `chezmoi init`
 to change your answer. `home/.chezmoidata/packages.toml` drives the macOS
 Homebrew install and holds the canonical VS Code extension list; its apt list is
 still a manual reference pending a scripted Linux install. Every list in it is

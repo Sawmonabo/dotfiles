@@ -21,10 +21,9 @@ failed=()
 {{- end }}
     nvm alias default {{ .versions.node_default }} || failed+=(node-default)
 {{- else }}
-{{- range .versions.node }}
-    nvm install {{ regexReplaceAll "\\..*$" . "" }} || failed+=("node-{{ . }}")
-{{- end }}
-    nvm alias default {{ regexReplaceAll "\\..*$" .versions.node_default "" }} || failed+=(node-default)
+    # latest: one newest Node only; other versions are a `nvm install <ver>` away.
+    nvm install node || failed+=(node-latest)
+    nvm alias default node || failed+=(node-default)
 {{- end }}
 else
     failed+=(nvm-missing)
@@ -37,9 +36,8 @@ if command -v uv &>/dev/null; then
     uv python install {{ . }} || failed+=("python-{{ . }}")
 {{- end }}
 {{- else }}
-{{- range .versions.python_minors }}
-    uv python install {{ . }} || failed+=("python-{{ . }}")
-{{- end }}
+    # latest: one newest stable Python only.
+    uv python install || failed+=(python-latest)
 {{- end }}
 else
     failed+=(uv-missing)
