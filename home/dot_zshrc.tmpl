@@ -44,8 +44,10 @@ if command -v uv &> /dev/null; then
     eval "$(uv generate-shell-completion zsh)"
 fi
 
-# PostgreSQL
-export PATH="/opt/homebrew/opt/postgresql@15/bin:$PATH"
+# PostgreSQL: keg-only, so it needs a PATH entry. The version-free opt link is
+# the alias Homebrew maintains for the "postgresql" formula in packages.toml, so
+# this follows whichever major version that alias currently installs.
+export PATH="/opt/homebrew/opt/postgresql/bin:$PATH"
 
 # --- Docker CLI completions ---
 fpath=("$HOME/.docker/completions" $fpath)
