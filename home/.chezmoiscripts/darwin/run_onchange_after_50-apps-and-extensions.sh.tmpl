@@ -42,6 +42,6 @@ else
     echo "        brew install --cask --adopt <name>      # same version: adopt in place" >&2
     echo "        brew install --cask --force <name>      # replace with the cask version" >&2
     echo "    Then: chezmoi state delete-bucket --bucket=entryState  (or edit packages.toml) to re-run." >&2
-    exit 1
+    # Best effort: exit 0 so later scripts (shared/40-tmux-plugins) still run.
 fi
 {{ end -}}
