@@ -86,6 +86,9 @@ fi
 if grep -rIil -e 'cursor' -e 'agent-brain' -e 'ab-claude' "$dest"; then
     echo "LEAK: Cursor or agent-brain content rendered"; fail=1
 fi
+if grep -rIn -E '"[a-z0-9-]+@[0-9.]+"' "$repo/home/.chezmoidata/packages.toml"; then
+    echo "LEAK: versioned package name in packages.toml"; fail=1
+fi
 
 echo "==> [$role/$mode] claude code status line"
 python3 -m py_compile "$dest/.claude/scripts/statusline.py" || { echo "STATUSLINE FAIL: statusline.py does not compile"; fail=1; }

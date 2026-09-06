@@ -1,6 +1,8 @@
 {{ if eq .chezmoi.os "darwin" -}}
-#!/bin/bash
-# Bootstrap script for macOS — installs Homebrew, bat, fd, oh-my-posh, JetBrains Mono Nerd Font, tmux, TPM, gh (bitwarden-cli on work machines)
+#!/usr/bin/env bash
+# macOS bootstrap: Homebrew, then every formula and cask listed under
+# [packages.darwin] in .chezmoidata/packages.toml, then TPM and VS Code
+# extensions. Idempotent: brew skips anything already installed.
 set -euo pipefail
 
 echo "==> macOS bootstrap starting..."
@@ -9,86 +11,50 @@ echo "==> macOS bootstrap starting..."
 if ! command -v brew &>/dev/null; then
     echo "==> Installing Homebrew..."
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    # Set up Homebrew in PATH for this script
-    if [ -d "/opt/homebrew/bin" ]; then
-        eval "$(/opt/homebrew/bin/brew shellenv)"
-    else
-        eval "$(/usr/local/bin/brew shellenv)"
-    fi
-    echo "    Homebrew installed."
-else
-    echo "==> Homebrew already installed, skipping."
+fi
+if [ -x /opt/homebrew/bin/brew ]; then
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+elif [ -x /usr/local/bin/brew ]; then
+    eval "$(/usr/local/bin/brew shellenv)"
 fi
 
-# --- bat ---
-if ! command -v bat &>/dev/null; then
-    echo "==> Installing bat..."
-    brew install bat
-    echo "    bat installed."
+# --- Formulae ---
+formulae=(
+{{- range .packages.darwin.brew }}
+    "{{ . }}"
+{{- end }}
+)
+missing=()
+for formula in "${formulae[@]}"; do
+    brew list --formula "${formula##*/}" &>/dev/null || missing+=("$formula")
+done
+if [ ${#missing[@]} -gt 0 ]; then
+    echo "==> Installing formulae: ${missing[*]}"
+    brew install "${missing[@]}"
 else
-    echo "==> bat already installed, skipping."
+    echo "==> All formulae already installed."
 fi
 
-# --- fd ---
-# Homebrew ships the binary as `fd` directly (no rename, unlike Debian's fdfind).
-if ! command -v fd &>/dev/null; then
-    echo "==> Installing fd..."
-    brew install fd
-    echo "    fd installed."
+# --- Casks ---
+casks=(
+{{- range .packages.darwin.cask }}
+    "{{ . }}"
+{{- end }}
+)
+missing=()
+for cask in "${casks[@]}"; do
+    brew list --cask "$cask" &>/dev/null || missing+=("$cask")
+done
+if [ ${#missing[@]} -gt 0 ]; then
+    echo "==> Installing casks: ${missing[*]}"
+    brew install --cask "${missing[@]}"
 else
-    echo "==> fd already installed, skipping."
-fi
-
-# --- oh-my-posh ---
-if ! command -v oh-my-posh &>/dev/null; then
-    echo "==> Installing oh-my-posh..."
-    brew install jandedobbeleer/oh-my-posh/oh-my-posh
-    echo "    oh-my-posh installed."
-else
-    echo "==> oh-my-posh already installed, skipping."
-fi
-
-# --- Oh My Posh config directory ---
-mkdir -p "$HOME/.config/oh-my-posh"
-
-# --- JetBrains Mono Nerd Font ---
-if ! system_profiler SPFontsDataType 2>/dev/null | grep -i "JetBrainsMono Nerd Font" >/dev/null; then
-    echo "==> Installing JetBrains Mono Nerd Font..."
-    brew install --cask font-jetbrains-mono-nerd-font
-    echo "    JetBrains Mono Nerd Font installed."
-else
-    echo "==> JetBrains Mono Nerd Font already installed, skipping."
-fi
-
-# --- tmux ---
-if ! command -v tmux &>/dev/null; then
-    echo "==> Installing tmux..."
-    brew install tmux
-    echo "    tmux installed."
-else
-    echo "==> tmux already installed, skipping."
-fi
-
-# --- TPM (Tmux Plugin Manager) ---
-if [ ! -d "$HOME/.tmux/plugins/tpm" ]; then
-    echo "==> Installing TPM (Tmux Plugin Manager)..."
-    git clone https://github.com/tmux-plugins/tpm "$HOME/.tmux/plugins/tpm"
-    echo "    TPM installed."
-else
-    echo "==> TPM already installed, skipping."
-fi
-
-# --- gh (GitHub CLI) ---
-if ! command -v gh &>/dev/null; then
-    echo "==> Installing GitHub CLI..."
-    brew install gh
-    echo "    gh installed."
-else
-    echo "==> gh already installed, skipping."
+    echo "==> All casks already installed."
 fi
 
 {{ if .has_work -}}
 # --- Bitwarden CLI (the bw wrapper in .zshrc expects it) ---
+# Role-gated, so it stays out of the role-neutral [packages.darwin] lists.
 if ! command -v bw &>/dev/null; then
     echo "==> Installing Bitwarden CLI..."
     brew install bitwarden-cli
@@ -98,5 +64,29 @@ else
 fi
 
 {{ end -}}
+# --- Oh My Posh config directory ---
+mkdir -p "$HOME/.config/oh-my-posh"
+
+# --- TPM (Tmux Plugin Manager) ---
+if [ ! -d "$HOME/.tmux/plugins/tpm" ]; then
+    echo "==> Installing TPM..."
+    git clone https://github.com/tmux-plugins/tpm "$HOME/.tmux/plugins/tpm"
+fi
+
+# --- VS Code extensions ---
+if command -v code &>/dev/null; then
+    installed=$(code --list-extensions | tr '[:upper:]' '[:lower:]')
+    for extension in \
+{{- range .packages.vscode_extensions }}
+        "{{ . }}" \
+{{- end }}
+    ; do
+        # tr rather than ${extension,,}: macOS ships bash 3.2, which lacks case expansion
+        grep -qx "$(tr '[:upper:]' '[:lower:]' <<<"$extension")" <<<"$installed" || code --install-extension "$extension" --force
+    done
+else
+    echo "    code CLI not on PATH; skipping VS Code extensions."
+fi
+
 echo "==> macOS bootstrap complete."
 {{ end -}}
