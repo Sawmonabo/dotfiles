@@ -1,6 +1,6 @@
 name: ci
 on:
-  push: {branches: [main, restructure]}
+  push: {branches: [main, restructure, 'feat/**']}
   pull_request:
 permissions:
   contents: read
@@ -34,7 +34,9 @@ jobs:
           else
             brew install shellcheck
           fi
-          sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin"
+          # Pinned to the version this branch was verified against (-t is the
+          # installer's tag flag); bump deliberately, not by drift.
+          sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin" -t v2.70.3
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Render, lint, and leak-check
         run: scripts/render-check.sh "${{ matrix.machine_role }}" "${{ matrix.versions_mode }}" "${{ matrix.extra }}"
