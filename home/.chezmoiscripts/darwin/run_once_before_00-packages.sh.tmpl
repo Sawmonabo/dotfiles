@@ -18,39 +18,23 @@ elif [ -x /usr/local/bin/brew ]; then
     eval "$(/usr/local/bin/brew shellenv)"
 fi
 
-# --- Formulae ---
-formulae=(
+# --- Formulae and casks (idempotent: brew bundle skips what is installed) ---
+# brew bundle resolves aliases (postgresql -> postgresql@N), so it does not
+# reinstall on every run the way a `brew list <alias>` probe would.
+brewfile="$(mktemp)"
+{
+    echo 'tap "jandedobbeleer/oh-my-posh"'
 {{- range .packages.darwin.brew }}
-    "{{ . }}"
+    echo 'brew "{{ . }}"'
 {{- end }}
-)
-missing=()
-for formula in "${formulae[@]}"; do
-    brew list --formula "${formula##*/}" &>/dev/null || missing+=("$formula")
-done
-if [ ${#missing[@]} -gt 0 ]; then
-    echo "==> Installing formulae: ${missing[*]}"
-    brew install "${missing[@]}"
-else
-    echo "==> All formulae already installed."
-fi
-
-# --- Casks ---
-casks=(
 {{- range .packages.darwin.cask }}
-    "{{ . }}"
+    echo 'cask "{{ . }}"'
 {{- end }}
-)
-missing=()
-for cask in "${casks[@]}"; do
-    brew list --cask "$cask" &>/dev/null || missing+=("$cask")
-done
-if [ ${#missing[@]} -gt 0 ]; then
-    echo "==> Installing casks: ${missing[*]}"
-    brew install --cask "${missing[@]}"
-else
-    echo "==> All casks already installed."
-fi
+} > "$brewfile"
+echo "==> Installing formulae and casks from packages.toml..."
+# --no-upgrade: bootstrap installs what is missing, it never upgrades what is there.
+brew bundle install --file="$brewfile" --no-upgrade
+rm -f "$brewfile"
 
 {{ if .has_work -}}
 # --- Bitwarden CLI (the bw wrapper in .zshrc expects it) ---
@@ -82,7 +66,7 @@ if command -v code &>/dev/null; then
 {{- end }}
     ; do
         # tr rather than ${extension,,}: macOS ships bash 3.2, which lacks case expansion
-        grep -qx "$(tr '[:upper:]' '[:lower:]' <<<"$extension")" <<<"$installed" || code --install-extension "$extension" --force
+        grep -qxF "$(tr '[:upper:]' '[:lower:]' <<<"$extension")" <<<"$installed" || code --install-extension "$extension" --force
     done
 else
     echo "    code CLI not on PATH; skipping VS Code extensions."
