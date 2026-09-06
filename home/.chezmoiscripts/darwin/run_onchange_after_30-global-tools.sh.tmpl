@@ -1,0 +1,96 @@
+{{ if eq .chezmoi.os "darwin" -}}
+#!/usr/bin/env bash
+# Install GLOBAL command-line tools from .chezmoidata/versions.toml.
+# Re-runs whenever the pins change. versions hash: {{ include ".chezmoidata/versions.toml" | sha256sum }}
+set -uo pipefail
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.bun/bin:$PATH"
+# Homebrew is not on PATH in the non-login shell chezmoi runs scripts in.
+if [ -x /opt/homebrew/bin/brew ]; then
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+elif [ -x /usr/local/bin/brew ]; then
+    eval "$(/usr/local/bin/brew shellenv)"
+fi
+export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+failed=()
+
+{{- $mode := .versions_mode }}
+
+# --- npm globals + codex + claude (into the default Node) ---
+{{ template "nvm-load.sh" }}
+    nvm use default || failed+=(node-default-missing)
+{{- if eq $mode "pinned" }}
+    # macOS: claude and codex usually come from their native installers in
+    # ~/.local/bin, which self-update. Only fall back to npm when absent, so
+    # the npm copy never shadows the native one on PATH.
+    command -v codex >/dev/null 2>&1 || npm install -g "@openai/codex@{{ .versions.codex }}" || failed+=(codex)
+    command -v claude >/dev/null 2>&1 || npm install -g "@anthropic-ai/claude-code@{{ .versions.claude }}" || failed+=(claude)
+{{- else }}
+    command -v codex >/dev/null 2>&1 || npm install -g @openai/codex@latest || failed+=(codex)
+    command -v claude >/dev/null 2>&1 || npm install -g @anthropic-ai/claude-code@latest || failed+=(claude)
+{{- end }}
+    corepack enable || failed+=(corepack)
+{{- range $tool, $ver := .corepack_globals }}
+{{- if eq $mode "pinned" }}
+    corepack install --global "{{ $tool }}@{{ $ver }}" || failed+=("corepack:{{ $tool }}")
+{{- else }}
+    corepack install --global "{{ $tool }}@latest" || failed+=("corepack:{{ $tool }}")
+{{- end }}
+{{- end }}
+else
+    failed+=(nvm-missing)
+fi
+
+# --- uv tools ---
+if command -v uv &>/dev/null; then
+{{- range $pkg, $ver := .uv_tools }}
+{{- if eq $mode "pinned" }}
+    uv tool install "{{ $pkg }}=={{ $ver }}" || failed+=("uv:{{ $pkg }}")
+{{- else }}
+    uv tool install --upgrade "{{ $pkg }}" || failed+=("uv:{{ $pkg }}")
+{{- end }}
+{{- end }}
+else
+    failed+=(uv-missing)
+fi
+
+# --- cargo tools ---
+# (an empty cargo_tools table must still render a valid if-body, hence the no-op)
+if command -v cargo &>/dev/null; then
+    :
+{{- range $pkg, $ver := .cargo_tools }}
+{{- if eq $mode "pinned" }}
+    cargo install --locked "{{ $pkg }}" --version "{{ $ver }}" || failed+=("cargo:{{ $pkg }}")
+{{- else }}
+    cargo install --locked "{{ $pkg }}" || failed+=("cargo:{{ $pkg }}")
+{{- end }}
+{{- end }}
+else
+    failed+=(cargo-missing)
+fi
+
+# --- go tools ---
+if command -v go &>/dev/null; then
+{{- range $mod, $ver := .go_tools }}
+{{- if eq $mode "pinned" }}
+    go install "{{ $mod }}@{{ $ver }}" || failed+=("go:{{ $mod }}")
+{{- else }}
+    go install "{{ $mod }}@latest" || failed+=("go:{{ $mod }}")
+{{- end }}
+{{- end }}
+else
+    failed+=(go-missing)
+fi
+
+# --- Docker Desktop provides the daemon on macOS; the docker CLI comes from Homebrew ---
+if command -v docker &>/dev/null; then
+    echo "    docker CLI present: $(docker --version)"
+else
+    failed+=(docker-missing)
+fi
+
+if [ ${#failed[@]} -gt 0 ]; then
+    printf 'WARNING: tool installs failed: %s\n' "${failed[*]}" >&2
+    exit 1
+fi
+echo "==> Global tools done."
+{{ end -}}

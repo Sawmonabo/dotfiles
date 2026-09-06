@@ -1,102 +1,71 @@
 {{ if eq .chezmoi.os "darwin" -}}
-#!/bin/bash
-# Bootstrap script for macOS — installs Homebrew, bat, fd, oh-my-posh, JetBrains Mono Nerd Font, tmux, TPM, gh (bitwarden-cli on work machines)
+#!/usr/bin/env bash
+# macOS bootstrap, before-phase: Homebrew, the command-line formulae under
+# [packages.darwin] in .chezmoidata/packages.toml, the oh-my-posh config
+# directory, and TPM. Deliberately limited to what the rc files and the
+# after-phase scripts depend on, because anything that fails here blocks the
+# apply before a single file deploys. GUI apps (casks) and VS Code extensions
+# are installed best-effort afterwards by 50-apps-and-extensions.
 set -euo pipefail
+
+# A bootstrap should not be the thing that updates Homebrew, cleans up, or nags.
+export HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 HOMEBREW_NO_ENV_HINTS=1
 
 echo "==> macOS bootstrap starting..."
 
 # --- Homebrew ---
-if ! command -v brew &>/dev/null; then
+# Probe the prefixes rather than `command -v brew`: on a Mac where Homebrew is
+# installed but not yet on PATH the installer would re-run and prompt for RETURN
+# and sudo. Download the installer to a file first, too — `bash -c "$(curl ...)"`
+# runs an empty string and exits 0 when the download fails, and the real error
+# then surfaces much later as `brew: command not found`.
+if [ ! -x /opt/homebrew/bin/brew ] && [ ! -x /usr/local/bin/brew ]; then
     echo "==> Installing Homebrew..."
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    # Set up Homebrew in PATH for this script
-    if [ -d "/opt/homebrew/bin" ]; then
-        eval "$(/opt/homebrew/bin/brew shellenv)"
-    else
-        eval "$(/usr/local/bin/brew shellenv)"
-    fi
-    echo "    Homebrew installed."
-else
-    echo "==> Homebrew already installed, skipping."
+    installer="$(mktemp)"
+    trap 'rm -f "$installer"' EXIT
+    curl -fsSL --retry 5 --retry-all-errors https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh -o "$installer"
+    [ -s "$installer" ] || { echo "Homebrew installer download failed" >&2; exit 1; }
+    # NONINTERACTIVE: no RETURN prompt; sudo may still ask for a password.
+    NONINTERACTIVE=1 /bin/bash "$installer"
+fi
+if [ -x /opt/homebrew/bin/brew ]; then
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+elif [ -x /usr/local/bin/brew ]; then
+    eval "$(/usr/local/bin/brew shellenv)"
 fi
 
-# --- bat ---
-if ! command -v bat &>/dev/null; then
-    echo "==> Installing bat..."
-    brew install bat
-    echo "    bat installed."
-else
-    echo "==> bat already installed, skipping."
-fi
-
-# --- fd ---
-# Homebrew ships the binary as `fd` directly (no rename, unlike Debian's fdfind).
-if ! command -v fd &>/dev/null; then
-    echo "==> Installing fd..."
-    brew install fd
-    echo "    fd installed."
-else
-    echo "==> fd already installed, skipping."
-fi
-
-# --- oh-my-posh ---
-if ! command -v oh-my-posh &>/dev/null; then
-    echo "==> Installing oh-my-posh..."
-    brew install jandedobbeleer/oh-my-posh/oh-my-posh
-    echo "    oh-my-posh installed."
-else
-    echo "==> oh-my-posh already installed, skipping."
-fi
+# --- Formulae (strict; idempotent: brew bundle skips what is installed) ---
+# Strict on purpose: this is the CLI set the rc files and the later scripts
+# assume, and a re-run resumes idempotently.
+# brew bundle resolves aliases (postgresql -> postgresql@N), so it does not
+# reinstall on every run the way a `brew list <alias>` probe would.
+# --no-upgrade: bootstrap installs what is missing, it never upgrades what is there.
+brewfile="$(mktemp)"
+trap 'rm -f "$brewfile"' EXIT
+{
+{{- range .packages.darwin.brew }}
+    echo 'brew "{{ . }}"'
+{{- end }}
+{{- if .has_work }}
+    # Role-gated here so bitwarden-cli stays out of the role-neutral data lists.
+    # The bw wrapper in .zshrc expects it on work machines.
+    echo 'brew "bitwarden-cli"'
+{{- end }}
+} > "$brewfile"
+echo "==> Installing formulae from packages.toml..."
+brew bundle install --file="$brewfile" --no-upgrade
 
 # --- Oh My Posh config directory ---
 mkdir -p "$HOME/.config/oh-my-posh"
 
-# --- JetBrains Mono Nerd Font ---
-if ! system_profiler SPFontsDataType 2>/dev/null | grep -i "JetBrainsMono Nerd Font" >/dev/null; then
-    echo "==> Installing JetBrains Mono Nerd Font..."
-    brew install --cask font-jetbrains-mono-nerd-font
-    echo "    JetBrains Mono Nerd Font installed."
-else
-    echo "==> JetBrains Mono Nerd Font already installed, skipping."
-fi
-
-# --- tmux ---
-if ! command -v tmux &>/dev/null; then
-    echo "==> Installing tmux..."
-    brew install tmux
-    echo "    tmux installed."
-else
-    echo "==> tmux already installed, skipping."
-fi
-
 # --- TPM (Tmux Plugin Manager) ---
+# Best effort: shared/40-tmux-plugins already skips gracefully when TPM is
+# absent, so a network hiccup here must not abort the apply.
 if [ ! -d "$HOME/.tmux/plugins/tpm" ]; then
-    echo "==> Installing TPM (Tmux Plugin Manager)..."
-    git clone https://github.com/tmux-plugins/tpm "$HOME/.tmux/plugins/tpm"
-    echo "    TPM installed."
-else
-    echo "==> TPM already installed, skipping."
+    echo "==> Installing TPM..."
+    git clone https://github.com/tmux-plugins/tpm "$HOME/.tmux/plugins/tpm" \
+        || echo "    WARNING: TPM clone failed; shared/40-tmux-plugins will skip plugin install" >&2
 fi
 
-# --- gh (GitHub CLI) ---
-if ! command -v gh &>/dev/null; then
-    echo "==> Installing GitHub CLI..."
-    brew install gh
-    echo "    gh installed."
-else
-    echo "==> gh already installed, skipping."
-fi
-
-{{ if .has_work -}}
-# --- Bitwarden CLI (the bw wrapper in .zshrc expects it) ---
-if ! command -v bw &>/dev/null; then
-    echo "==> Installing Bitwarden CLI..."
-    brew install bitwarden-cli
-    echo "    bitwarden-cli installed."
-else
-    echo "==> Bitwarden CLI already installed, skipping."
-fi
-
-{{ end -}}
 echo "==> macOS bootstrap complete."
 {{ end -}}

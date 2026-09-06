@@ -1,9 +1,15 @@
-{{ if eq .chezmoi.os "linux" -}}
-#!/bin/bash
+{{ if eq .chezmoi.os "darwin" -}}
+#!/usr/bin/env bash
 # Install language RUNTIMES from .chezmoidata/versions.toml pins.
 # Re-runs whenever the pins change. versions hash: {{ include ".chezmoidata/versions.toml" | sha256sum }}
 set -uo pipefail
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.bun/bin:$PATH"
+# Homebrew is not on PATH in the non-login shell chezmoi runs scripts in.
+if [ -x /opt/homebrew/bin/brew ]; then
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+elif [ -x /usr/local/bin/brew ]; then
+    eval "$(/usr/local/bin/brew shellenv)"
+fi
 export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
 failed=()
 

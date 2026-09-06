@@ -56,6 +56,10 @@ while IFS= read -r -d '' script; do
         echo "    linting ${script#"$repo"/}"
         bash -n "$out" || { echo "SYNTAX FAIL: $script"; fail=1; }
         shellcheck -S warning "$out" || { echo "SHELLCHECK FAIL: $script"; fail=1; }
+        # Comment lines are not behaviour; only executable lines count as a leak.
+        if [ "$role" = personal ] && grep -vE '^[[:space:]]*#' "$out" | grep -qiE 'gitlab|bitwarden|fortressinfosec|dispatch-|coderabbit|promptctl'; then
+            echo "LEAK: work-only content in rendered script $script (personal)"; fail=1
+        fi
     fi
 done < <(find "$repo/home/.chezmoiscripts" -name '*.sh.tmpl' -print0 \
     ; [ "$extra" = wsl ] && printf '%s\0' "$repo/home/dot_local/bin/executable_win-browser.tmpl")
@@ -71,7 +75,7 @@ if grep -rIln -e '/home/sabossedgh' -e '/Users/sawmonabo' "$repo/home"; then
     echo "LEAK: hardcoded home directory in a source template"; fail=1
 fi
 if [ "$role" = personal ]; then
-    if grep -rIl -e fortressinfosec -e dispatch-atlassian -e dispatch-gitlab -e coderabbit -e promptctl "$dest"; then
+    if grep -rIl -e fortressinfosec -e dispatch-atlassian -e gitlab -e coderabbit -e promptctl "$dest"; then
         echo "LEAK: work-only content rendered for machine_role=personal"; fail=1
     fi
     [ -e "$dest/.codex/hooks.json" ] && { echo "LEAK: .codex/hooks.json deployed on personal"; fail=1; }
@@ -85,6 +89,9 @@ if ! grep -qi microsoft /proc/version 2>/dev/null; then
 fi
 if grep -rIil -e 'cursor' -e 'agent-brain' -e 'ab-claude' "$dest"; then
     echo "LEAK: Cursor or agent-brain content rendered"; fail=1
+fi
+if grep -rIn -E '"[a-z0-9-]+@[0-9.]+"' "$repo/home/.chezmoidata/packages.toml"; then
+    echo "LEAK: versioned package name in packages.toml"; fail=1
 fi
 
 echo "==> [$role/$mode] claude code status line"

@@ -1,0 +1,49 @@
+{{ if eq .chezmoi.os "darwin" -}}
+#!/usr/bin/env bash
+# GUI apps (casks) and VS Code extensions from .chezmoidata/packages.toml.
+# After-phase and best-effort on purpose: files are already deployed, a
+# hand-installed app at another version cannot be adopted by its cask, and a
+# marketplace hiccup must not fail the apply. Re-runs whenever the lists change.
+# packages hash: {{ include ".chezmoidata/packages.toml" | sha256sum }}
+set -uo pipefail
+export HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 HOMEBREW_NO_ENV_HINTS=1
+if [ -x /opt/homebrew/bin/brew ]; then
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+elif [ -x /usr/local/bin/brew ]; then
+    eval "$(/usr/local/bin/brew shellenv)"
+fi
+
+bundle="$(mktemp)"
+trap 'rm -f "$bundle"' EXIT
+{
+{{- range .packages.darwin.cask }}
+    echo 'cask "{{ . }}"'
+{{- end }}
+    # No `command -v code` gate: brew bundle installs the cask batch (which
+    # includes visual-studio-code) before the vscode batch, and resolves
+    # `code` itself at that point. If VS Code is truly absent the vscode
+    # batch fails into the best-effort warning below.
+{{- range .packages.vscode_extensions }}
+    echo 'vscode "{{ . }}"'
+{{- end }}
+{{- if .has_work }}
+    # GitLab is work-only, so this one is gated here rather than in the
+    # role-neutral vscode_extensions list.
+    echo 'vscode "jasonn-porch.gitlab-mr"'
+{{- end }}
+} > "$bundle"
+
+echo "==> Installing casks and VS Code extensions from packages.toml..."
+# --no-upgrade: install what is missing, never upgrade what is there.
+if brew bundle install --file="$bundle" --no-upgrade; then
+    echo "==> Apps and extensions done."
+else
+    echo "    WARNING: one or more casks or extensions did not install (see above)." >&2
+    echo "    An app already in /Applications at a different version cannot be adopted." >&2
+    echo "    Quit the app, let it update itself or replace it, then run one of:" >&2
+    echo "        brew install --cask --adopt <name>      # same version: adopt in place" >&2
+    echo "        brew install --cask --force <name>      # replace with the cask version" >&2
+    echo "    Then: chezmoi state delete-bucket --bucket=entryState  (or edit packages.toml) to re-run." >&2
+    # Best effort: exit 0 so later scripts (shared/40-tmux-plugins) still run.
+fi
+{{ end -}}

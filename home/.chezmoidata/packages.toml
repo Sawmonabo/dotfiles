@@ -1,5 +1,10 @@
-# Manually-consumed reference data (see README): apt packages recorded on
-# the 2026-08-17 inventory, and VS Code extension IDs. Scriptable later.
+# Package data consumed by the platform bootstrap scripts (darwin) or kept
+# as a manual reference (apt, pending a scripted install).
+# vscode_extensions is the canonical set for every platform.
+#
+# Every list here is role-neutral, so role gating lives in the scripts, never in
+# this file: bitwarden-cli (00-packages) and the jasonn-porch.gitlab-mr
+# extension (50-apps-and-extensions) are added only when .has_work.
 [packages]
 apt = [
   "aardvark-dns",
@@ -82,6 +87,7 @@ apt = [
   "wl-clipboard",
   "wslu",
 ]
+
 vscode_extensions = [
   "aaron-bond.better-comments",
   "adpyke.codesnap",
@@ -94,7 +100,11 @@ vscode_extensions = [
   "christian-kohler.path-intellisense",
   "davidanson.vscode-markdownlint",
   "dbaeumer.vscode-eslint",
+  "docker.docker",
   "donjayamanne.githistory",
+  "donjayamanne.python-environment-manager",
+  "dsznajder.es7-react-js-snippets",
+  "dustypomerleau.rust-syntax",
   "eamodio.gitlens",
   "ecmel.vscode-html-css",
   "esbenp.prettier-vscode",
@@ -106,6 +116,8 @@ vscode_extensions = [
   "hediet.debug-visualizer",
   "irongeek.vscode-env",
   "jock.svg",
+  "kevinrose.vsc-python-indent",
+  "matangover.mypy",
   "mechatroner.rainbow-csv",
   "mermaidchart.vscode-mermaid-chart",
   "mgmcdermott.vscode-language-babel",
@@ -124,7 +136,10 @@ vscode_extensions = [
   "ms-toolsai.vscode-jupyter-cell-tags",
   "ms-toolsai.vscode-jupyter-slideshow",
   "ms-vscode-remote.remote-containers",
+  "ms-vscode-remote.remote-ssh",
+  "ms-vscode-remote.remote-ssh-edit",
   "ms-vscode-remote.remote-wsl",
+  "ms-vscode.remote-explorer",
   "neo4j-extensions.neo4j-for-vscode",
   "oderwat.indent-rainbow",
   "postman.postman-for-vscode",
@@ -132,10 +147,59 @@ vscode_extensions = [
   "qwtel.sqlite-viewer",
   "redhat.vscode-yaml",
   "ritwickdey.liveserver",
+  "rust-lang.rust-analyzer",
+  "sidthesloth.html5-boilerplate",
+  "stephanvs.dot",
   "svelte.svelte-vscode",
   "tamasfe.even-better-toml",
   "timonwong.shellcheck",
+  "tomoki1207.pdf",
   "usernamehw.errorlens",
+  "vscode-icons-team.vscode-icons",
+  "xabikos.javascriptsnippets",
   "xirider.livecode",
   "yoavbls.pretty-ts-errors",
+]
+
+# Homebrew (macOS). brew = command-line formulae, installed strictly by
+# .chezmoiscripts/darwin/00-packages; cask = GUI apps, installed best-effort by
+# .chezmoiscripts/darwin/50-apps-and-extensions alongside vscode_extensions.
+# Names only; no versions. bat, fd, oh-my-posh, tmux, gh, and the Nerd Font are
+# listed here too so the bootstrap has one source of truth.
+# Must stay last in the file: a TOML sub-table header owns every key that
+# follows it, so apt and vscode_extensions have to be declared above it.
+[packages.darwin]
+brew = [
+  "age",
+  "bat",
+  "bats-core",
+  "bun",
+  "chezmoi",
+  "fd",
+  "gh",
+  "git-filter-repo",
+  "gitleaks",
+  "go",
+  "gofumpt",
+  "golangci-lint",
+  "goreleaser",
+  "htop",
+  "jq",
+  "lefthook",
+  "oh-my-posh",
+  "postgresql",
+  "ripgrep",
+  "shellcheck",
+  "tmux",
+  "tree",
+  "uv",
+]
+cask = [
+  "claude",
+  "dbeaver-community",
+  "docker-desktop",
+  "font-jetbrains-mono-nerd-font",
+  "google-chrome",
+  "obsidian",
+  "visual-studio-code",
 ]
