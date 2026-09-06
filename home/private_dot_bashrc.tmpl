@@ -109,5 +109,6 @@ fi
 export PATH="$HOME/bin:$PATH"
 
 {{- if .has_work }}
-{{ template "bw-wrapper.sh" . }}
+
+{{ includeTemplate "bw-wrapper.sh" . | trim }}
 {{- end }}

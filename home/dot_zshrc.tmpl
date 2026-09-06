@@ -66,7 +66,8 @@ eval "$(oh-my-posh init zsh --config ~/.config/oh-my-posh/catppuccin_mocha.omp.j
 export EDITOR="{{ .editor }} --wait"
 
 {{- if .has_work }}
-{{ template "bw-wrapper.sh" . }}
+
+{{ includeTemplate "bw-wrapper.sh" . | trim }}
 {{- end }}
 
 # --- Local overrides (not managed by chezmoi) ---

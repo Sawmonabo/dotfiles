@@ -8,11 +8,11 @@ Answers persist in the local chezmoi.toml, never in the repo.
 {{- $role := promptChoiceOnce . "machine_role" "Machine role" (list "personal" "work" "both") "personal" -}}
 {{- $hasWork := or (eq $role "work") (eq $role "both") -}}
 {{- $hasPersonal := or (eq $role "personal") (eq $role "both") -}}
-{{- /* WSL detection. .chezmoi.kernel is an empty map on macOS, so guard the key. */ -}}
 {{- /* promptChoiceOnce returns a stale answer verbatim, even one outside the
        choice list (e.g. an old "cursor"); normalise it back to the default. */ -}}
 {{- $editor := promptChoiceOnce . "editor" "Preferred editor" (list "code" "vim") "code" -}}
 {{- if not (has $editor (list "code" "vim")) }}{{ $editor = "code" }}{{ end -}}
+{{- /* WSL detection. .chezmoi.kernel is an empty map on macOS, so guard the key. */ -}}
 {{- $isWsl := false -}}
 {{- if eq .chezmoi.os "linux" -}}
 {{-   if hasKey .chezmoi.kernel "osrelease" -}}

@@ -87,7 +87,7 @@ else
     echo "==> gh already installed, skipping."
 fi
 
-{{- if .has_work }}
+{{ if .has_work -}}
 # --- Bitwarden CLI (the bw wrapper in .zshrc expects it) ---
 if ! command -v bw &>/dev/null; then
     echo "==> Installing Bitwarden CLI..."
@@ -96,7 +96,7 @@ if ! command -v bw &>/dev/null; then
 else
     echo "==> Bitwarden CLI already installed, skipping."
 fi
-{{- end }}
 
+{{ end -}}
 echo "==> macOS bootstrap complete."
 {{ end -}}
