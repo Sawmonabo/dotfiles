@@ -1,0 +1,103 @@
+{{ if eq .chezmoi.os "darwin" -}}
+#!/usr/bin/env bash
+# GUI apps (casks) and VS Code extensions from .chezmoidata/packages.toml.
+# Runs on every apply (run_after_, not run_onchange_) so it converges: an app
+# that was skipped because it was running, or a download that failed, is
+# retried on the next apply with no manual state reset. When everything is
+# already satisfied it is a single `brew bundle check`.
+# After-phase and best-effort on purpose: files are already deployed and a
+# marketplace hiccup must not fail the apply.
+#
+# Hand-installed apps: `brew bundle` adopts an app that is already in
+# /Applications, whatever its version. Adoption fails when the cask links a
+# binary that the older app does not contain, and Homebrew's rollback then
+# DELETES the app (observed: Obsidian 1.8 vs cask 1.13, which added
+# obsidian-cli). So every cask is classified first:
+#   - managed by Homebrew, or app absent      -> brew bundle (no-op / fresh install)
+#   - present, every linked binary exists     -> brew bundle (clean adopt in place)
+#   - present, a linked binary is missing:
+#       app not running                       -> brew install --cask --force (replace)
+#       app running                           -> skipped with a note; retried next apply
+set -uo pipefail
+export HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 HOMEBREW_NO_ENV_HINTS=1
+if [ -x /opt/homebrew/bin/brew ]; then
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+elif [ -x /usr/local/bin/brew ]; then
+    eval "$(/usr/local/bin/brew shellenv)"
+fi
+
+# Homebrew's default appdir. The binary paths in `brew info --json` are already
+# expanded against the real appdir, so only the app-bundle probe uses this.
+appdir="/Applications"
+managed_casks="$(brew list --cask 2>/dev/null || true)"
+bundle_casks=()
+replace_casks=()
+skipped=()
+
+classify() {
+    local cask="$1" info app binary missing=0
+    if grep -qx "$cask" <<< "$managed_casks"; then
+        bundle_casks+=("$cask"); return
+    fi
+    if ! info="$(brew info --cask --json=v2 "$cask" 2>/dev/null)"; then
+        bundle_casks+=("$cask"); return    # let brew bundle report the error
+    fi
+    app="$(jq -r '[.casks[0].artifacts[] | select(.app) | .app[0] | strings][0] // empty' <<< "$info")"
+    if [ -z "$app" ] || [ ! -d "$appdir/$app" ]; then
+        bundle_casks+=("$cask"); return    # no app artifact (fonts) or nothing to adopt
+    fi
+    while IFS= read -r binary; do
+        [ -n "$binary" ] && [ ! -e "$binary" ] && missing=1
+    done < <(jq -r '.casks[0].artifacts[] | select(.binary) | .binary[0] | strings' <<< "$info")
+    if [ "$missing" -eq 0 ]; then
+        bundle_casks+=("$cask"); return    # clean adopt
+    fi
+    if pgrep -qf "$appdir/$app/"; then
+        skipped+=("$cask: $app is running and lacks a binary the cask links; quit it and re-run chezmoi apply to replace it with the cask version")
+    else
+        replace_casks+=("$cask")
+    fi
+}
+{{- range .packages.darwin.cask }}
+classify "{{ . }}"
+{{- end }}
+
+for cask in ${replace_casks[@]+"${replace_casks[@]}"}; do
+    echo "==> Replacing hand-installed $cask with the cask version (it is not running)..."
+    brew install --cask --force "$cask" || skipped+=("$cask: replace failed (see above)")
+done
+
+bundle="$(mktemp)"
+trap 'rm -f "$bundle"' EXIT
+{
+    for cask in ${bundle_casks[@]+"${bundle_casks[@]}"}; do
+        echo "cask \"$cask\""
+    done
+    # No `command -v code` gate: brew bundle installs the cask batch (which
+    # includes visual-studio-code) before the vscode batch, and resolves
+    # `code` itself at that point. If VS Code is truly absent the vscode
+    # batch fails into the best-effort warning below.
+{{- range .packages.vscode_extensions }}
+    echo 'vscode "{{ . }}"'
+{{- end }}
+{{- if .has_work }}
+    # GitLab is work-only, so this one is gated here rather than in the
+    # role-neutral vscode_extensions list.
+    echo 'vscode "jasonn-porch.gitlab-mr"'
+{{- end }}
+} > "$bundle"
+
+# --no-upgrade: install what is missing, never upgrade what is there.
+if brew bundle check --file="$bundle" --no-upgrade >/dev/null 2>&1; then
+    echo "==> Apps and extensions already satisfied."
+else
+    echo "==> Installing casks and VS Code extensions from packages.toml..."
+    brew bundle install --file="$bundle" --no-upgrade || skipped+=("brew bundle reported failures (see above); retried on the next apply")
+fi
+
+if [ ${#skipped[@]} -gt 0 ]; then
+    printf '    WARNING: %s\n' "${skipped[@]}" >&2
+fi
+# Best effort: exit 0 so later scripts still run.
+exit 0
+{{ end -}}

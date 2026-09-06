@@ -77,14 +77,18 @@ here stops the apply): Homebrew first, installed if missing, then the
 `~/.config/oh-my-posh`, and [TPM](https://github.com/tmux-plugins/tpm) into
 `~/.tmux/plugins/tpm` (best-effort).
 
-**After the files deploy** (`run_onchange_after_50-apps-and-extensions`,
+**After the files deploy** (`run_after_50-apps-and-extensions`, every apply,
 best-effort — it warns and carries on): the `[packages.darwin].cask` GUI apps,
 including the [JetBrains Mono Nerd Font](https://www.nerdfonts.com/), and the VS
-Code extensions from `packages.vscode_extensions`. It re-runs whenever
-`packages.toml` changes, so a cask that failed can be retried.
+Code extensions from `packages.vscode_extensions`. An app you installed by hand
+is adopted in place when it is safe to; one that the cask cannot adopt is
+replaced with the cask version if it is not running, otherwise skipped with a
+note and retried on the next apply. Then `run_after_60-cleanup` reinstalls any
+list formula that came from a third-party tap from core, untaps unused taps,
+and runs `brew autoremove` and `brew cleanup -s --prune=all`.
 
-Both phases run as `brew bundle install --no-upgrade` from a temporary Brewfile,
-so they add what is missing and never upgrade what is already there.
+Both install phases run as `brew bundle install --no-upgrade` from a temporary
+Brewfile, so they add what is missing and never upgrade what is already there.
 
 ### Linux / WSL
 

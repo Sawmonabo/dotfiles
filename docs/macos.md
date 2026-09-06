@@ -73,7 +73,8 @@ Five scripts run after the files are deployed (the four darwin ones below, then 
 | `run_once_after_10-runtime-managers` | nvm and rustup via their upstream installers; uv, bun and Go come from Homebrew and are only verified here |
 | `run_onchange_after_20-runtimes` | Node versions + default alias (nvm), Pythons (uv), Rust toolchain (rustup) |
 | `run_onchange_after_30-global-tools` | codex, claude, corepack pnpm/yarn, uv tools, cargo tools, go tools; checks that the docker CLI is on PATH |
-| `run_onchange_after_50-apps-and-extensions` | The `[packages.darwin].cask` GUI apps and the `vscode_extensions` set, in one `brew bundle install --no-upgrade` using its native `cask` and `vscode` entries. Best-effort: it warns and re-runs whenever `packages.toml` changes. `jasonn-porch.gitlab-mr` is added here only on work machines |
+| `run_after_50-apps-and-extensions` | The `[packages.darwin].cask` GUI apps and the `vscode_extensions` set via `brew bundle install --no-upgrade` (native `cask` and `vscode` entries). Runs every apply and is best-effort. Hand-installed apps are adopted in place when every binary the cask links exists in them, replaced with the cask version when not (only if the app is not running), otherwise skipped with a note. `jasonn-porch.gitlab-mr` is added here only on work machines |
+| `run_after_60-cleanup` | Homebrew hygiene, every apply: list formulae installed from a third-party tap are reinstalled from core, taps nothing installed comes from are untapped, then `brew autoremove` and `brew cleanup -s --prune=all`. nvm, uv and rustup versions are never touched |
 
 (`run_onchange_after_55-terminal-font` also runs, but it only prints Terminal.app
 font instructions.)
@@ -263,34 +264,31 @@ brew --prefix
 Formulae are strict: if `run_once_before_00-packages` fails, the apply stops and
 you fix the formula, then re-run `chezmoi apply`.
 
-Casks and VS Code extensions are not. `run_onchange_after_50-apps-and-extensions`
-runs after the files are deployed and prints:
+Casks and VS Code extensions are not. `run_after_50-apps-and-extensions` runs
+after the files are deployed, on every apply, and prints a `WARNING:` line for
+anything it could not do. There is nothing to reset: the next `chezmoi apply`
+simply tries again.
+
+**An app you installed by hand.** Homebrew adopts an app that is already in
+`/Applications` regardless of its version. Adoption fails, though, when the
+cask links a binary that the older app does not contain — and Homebrew's
+rollback then deletes the app (this happened with Obsidian 1.8 against cask
+1.13, which added `obsidian-cli`). The script therefore checks every linked
+binary first and never hands such an app to `brew bundle`. If the app is not
+running it replaces it with the cask version (`brew install --cask --force`);
+if it is running you get:
 
 ```
-    WARNING: one or more casks or extensions did not install (see above).
-    An app already in /Applications at a different version cannot be adopted.
+    WARNING: <cask>: <App>.app is running and lacks a binary the cask links; quit it and re-run chezmoi apply to replace it with the cask version
 ```
 
-The usual cause is an app you installed by hand: `brew bundle` reports
-`It seems there is already an App at /Applications/...`. Homebrew can adopt such
-an app in place only when its version matches the cask exactly; otherwise you
-have to replace it. **Quit the app first** — `--force` will overwrite a running
-app, and Docker Desktop in particular should be quit before you do this.
+Quit the app (Docker Desktop in particular) and run `chezmoi apply` again. Your
+data is not in the app bundle, so replacing it loses nothing.
 
-```bash
-brew install --cask --adopt <name>      # same version: adopt in place
-brew install --cask --force <name>      # replace with the cask version
-```
-
-That is the install, so there is nothing to re-apply afterwards. To make the
-script itself run again — after fixing something it warned about, say — either
-edit `home/.chezmoidata/packages.toml` (its hash is baked into the script, so
-any change re-runs it) or clear the recorded state:
-
-```bash
-chezmoi state delete-bucket --bucket=entryState
-chezmoi apply -v
-```
+**A download failed** (no space, network): the warning names it and the next
+apply retries. `run_after_60-cleanup` runs afterwards and frees the Homebrew
+download cache, so a "No space left on device" during a large cask usually
+fixes itself on the second apply.
 
 ### chezmoi not found
 

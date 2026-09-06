@@ -1,0 +1,49 @@
+{{ if eq .chezmoi.os "darwin" -}}
+#!/usr/bin/env bash
+# Homebrew hygiene on every apply, best-effort, so nothing stale is left
+# behind by the install scripts above:
+#   1. a packages.toml formula installed from a third-party tap is reinstalled
+#      from homebrew/core (Homebrew's tap-trust policy ignores untrusted taps,
+#      so such a keg would never update again);
+#   2. taps that nothing installed comes from are untapped;
+#   3. dependencies nothing needs any more, superseded versions of installed
+#      formulae and casks, and the whole download cache are removed.
+# Nothing here touches runtimes managed by nvm, uv or rustup: older versions
+# there are kept on purpose for per-project use.
+set -uo pipefail
+export HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_ENV_HINTS=1
+if [ -x /opt/homebrew/bin/brew ]; then
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+elif [ -x /usr/local/bin/brew ]; then
+    eval "$(/usr/local/bin/brew shellenv)"
+fi
+
+echo "==> Homebrew cleanup..."
+
+# --- 1. list formulae that came from a third-party tap -> core ---
+installed_full="$(brew list --formula --full-name 2>/dev/null || true)"
+for name in {{ range .packages.darwin.brew }}"{{ . }}" {{ end }}; do
+    tapped="$(grep -E "^[^/]+/[^/]+/${name}$" <<< "$installed_full" || true)"
+    [ -n "$tapped" ] || continue
+    echo "    $name is installed from ${tapped%/*}; reinstalling from homebrew/core"
+    if ! { brew uninstall --ignore-dependencies "$tapped" && brew install "$name"; }; then
+        echo "    WARNING: could not move $name to homebrew/core (see above)" >&2
+    fi
+done
+
+# --- 2. taps nothing installed comes from ---
+installed_taps="$( { brew list --formula --full-name; brew list --cask --full-name; } 2>/dev/null \
+    | awk -F/ 'NF == 3 { print $1 "/" $2 }' | sort -u)"
+for tap in $(brew tap 2>/dev/null | grep -v '^homebrew/' || true); do
+    grep -qx "$tap" <<< "$installed_taps" && continue
+    echo "    untapping $tap (nothing installed comes from it)"
+    brew untap "$tap" || echo "    WARNING: could not untap $tap" >&2
+done
+
+# --- 3. orphans, old versions, cache ---
+brew autoremove || echo "    WARNING: brew autoremove failed" >&2
+brew cleanup -s --prune=all || echo "    WARNING: brew cleanup failed" >&2
+
+echo "==> Homebrew cleanup done."
+exit 0
+{{ end -}}

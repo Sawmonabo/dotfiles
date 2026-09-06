@@ -19,6 +19,8 @@ failed=()
     npm install -g @openai/codex@latest || failed+=(codex)
     npm install -g @anthropic-ai/claude-code@latest || failed+=(claude)
 {{- end }}
+    # Node >= 25 no longer bundles corepack; install it into the default Node first.
+    command -v corepack >/dev/null 2>&1 || npm install -g corepack@latest || failed+=(corepack-install)
     corepack enable || failed+=(corepack)
 {{- range $tool, $ver := .corepack_globals }}
 {{- if eq $mode "pinned" }}
