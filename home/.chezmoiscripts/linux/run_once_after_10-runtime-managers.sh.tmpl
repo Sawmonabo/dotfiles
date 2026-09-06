@@ -10,12 +10,19 @@ echo "==> Runtime managers ({{ .versions_mode }} mode)..."
 # --- nvm ---
 export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
 if [ ! -r "$NVM_DIR/nvm.sh" ]; then
+    # Download the installer, then run it. `bash -c "curl ... | bash"` pipes an
+    # empty body into bash and exits 0 when curl fails, so the real error would
+    # only surface later as nvm-missing in 20-runtimes.
+    nvm_installer=$(mktemp)
 {{- if eq .versions_mode "pinned" }}
-    PROFILE=/dev/null bash -c "curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/{{ .versions.nvm }}/install.sh | PROFILE=/dev/null bash"
+    curl -fsSL "https://raw.githubusercontent.com/nvm-sh/nvm/{{ .versions.nvm }}/install.sh" -o "$nvm_installer"
 {{- else }}
     latest_nvm=$(curl -fsSL https://api.github.com/repos/nvm-sh/nvm/releases/latest | grep -om1 '"tag_name": *"[^"]*"' | cut -d'"' -f4)
-    PROFILE=/dev/null bash -c "curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/${latest_nvm}/install.sh | PROFILE=/dev/null bash"
+    curl -fsSL "https://raw.githubusercontent.com/nvm-sh/nvm/${latest_nvm}/install.sh" -o "$nvm_installer"
 {{- end }}
+    [ -s "$nvm_installer" ] || { echo "    nvm installer download failed" >&2; rm -f "$nvm_installer"; exit 1; }
+    PROFILE=/dev/null bash "$nvm_installer"
+    rm -f "$nvm_installer"
 else
     echo "    nvm already present; keeping it."
 fi
