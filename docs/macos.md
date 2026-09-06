@@ -168,6 +168,10 @@ chezmoi verify             # exit code 0 = everything matches
 chezmoi diff               # see what differs
 ```
 
+`chezmoi status` always lists `50-apps-and-extensions` and `60-cleanup` as `R`:
+they are `run_after_` scripts and run on every apply by design. Only file
+entries there are drift.
+
 ### Re-run setup prompts
 
 ```bash
