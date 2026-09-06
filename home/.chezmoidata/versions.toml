@@ -28,6 +28,9 @@ yarn = "1.22.22"
 # bootstrap script installs it from apt (cargo only as a fallback), so listing
 # it would compile it a second time on every apply.
 [cargo_tools]
+"cargo-audit" = "0.22.2"
+"cargo-deny" = "0.20.2"
+"just" = "1.57.0"
 
 # go install <module>@<version>
 [go_tools]

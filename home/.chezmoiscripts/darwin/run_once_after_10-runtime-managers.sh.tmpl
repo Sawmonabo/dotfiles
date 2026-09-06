@@ -1,0 +1,40 @@
+{{ if eq .chezmoi.os "darwin" -}}
+#!/usr/bin/env bash
+# Install runtime MANAGERS on macOS: nvm and rustup via their upstream
+# installers; uv, bun, and Go come from Homebrew (00-packages) and are only
+# checked here. Mirrors linux/10-runtime-managers.
+set -euo pipefail
+
+echo "==> Runtime managers ({{ .versions_mode }} mode)..."
+
+# --- nvm ---
+export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+if [ ! -r "$NVM_DIR/nvm.sh" ]; then
+{{- if eq .versions_mode "pinned" }}
+    PROFILE=/dev/null bash -c "curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/{{ .versions.nvm }}/install.sh | PROFILE=/dev/null bash"
+{{- else }}
+    latest_nvm=$(curl -fsSL https://api.github.com/repos/nvm-sh/nvm/releases/latest | grep -om1 '"tag_name": *"[^"]*"' | cut -d'"' -f4)
+    PROFILE=/dev/null bash -c "curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/${latest_nvm}/install.sh | PROFILE=/dev/null bash"
+{{- end }}
+else
+    echo "    nvm already present; keeping it."
+fi
+
+# --- rustup ---
+if ! command -v rustup &>/dev/null && [ ! -x "$HOME/.cargo/bin/rustup" ]; then
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
+else
+    echo "    rustup already present."
+fi
+
+# --- uv, bun, Go (Homebrew) ---
+for tool in uv bun go; do
+    if command -v "$tool" &>/dev/null; then
+        echo "    $tool present: $("$tool" --version 2>/dev/null | head -n1)"
+    else
+        echo "    WARNING: $tool missing; 00-packages should have installed it via Homebrew." >&2
+    fi
+done
+
+echo "==> Runtime managers done."
+{{ end -}}
