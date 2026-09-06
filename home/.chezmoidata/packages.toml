@@ -1,6 +1,10 @@
 # Package data consumed by the platform bootstrap scripts (darwin) or kept
 # as a manual reference (apt, pending a scripted install).
 # vscode_extensions is the canonical set for every platform.
+#
+# Every list here is role-neutral, so role gating lives in the scripts, never in
+# this file: bitwarden-cli (00-packages) and the jasonn-porch.gitlab-mr
+# extension (50-apps-and-extensions) are added only when .has_work.
 [packages]
 apt = [
   "aardvark-dns",
@@ -111,7 +115,6 @@ vscode_extensions = [
   "gruntfuggly.todo-tree",
   "hediet.debug-visualizer",
   "irongeek.vscode-env",
-  "jasonn-porch.gitlab-mr",
   "jock.svg",
   "kevinrose.vsc-python-indent",
   "matangover.mypy",
@@ -162,8 +165,7 @@ vscode_extensions = [
 # .chezmoiscripts/darwin/00-packages; cask = GUI apps, installed best-effort by
 # .chezmoiscripts/darwin/50-apps-and-extensions alongside vscode_extensions.
 # Names only; no versions. bat, fd, oh-my-posh, tmux, gh, and the Nerd Font are
-# listed here too so the bootstrap has one source of truth. Role-neutral: the
-# work-only bitwarden-cli line is gated in the script, never here.
+# listed here too so the bootstrap has one source of truth.
 # Must stay last in the file: a TOML sub-table header owns every key that
 # follows it, so apt and vscode_extensions have to be declared above it.
 [packages.darwin]

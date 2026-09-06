@@ -23,6 +23,11 @@ trap 'rm -f "$bundle"' EXIT
 {{- range .packages.vscode_extensions }}
         echo 'vscode "{{ . }}"'
 {{- end }}
+{{- if .has_work }}
+        # GitLab is work-only, so this one is gated here rather than in the
+        # role-neutral vscode_extensions list.
+        echo 'vscode "jasonn-porch.gitlab-mr"'
+{{- end }}
     fi
 } > "$bundle"
 

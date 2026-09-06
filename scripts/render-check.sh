@@ -71,7 +71,7 @@ if grep -rIln -e '/home/sabossedgh' -e '/Users/sawmonabo' "$repo/home"; then
     echo "LEAK: hardcoded home directory in a source template"; fail=1
 fi
 if [ "$role" = personal ]; then
-    if grep -rIl -e fortressinfosec -e dispatch-atlassian -e dispatch-gitlab -e coderabbit -e promptctl "$dest"; then
+    if grep -rIl -e fortressinfosec -e dispatch-atlassian -e gitlab -e coderabbit -e promptctl "$dest"; then
         echo "LEAK: work-only content rendered for machine_role=personal"; fail=1
     fi
     [ -e "$dest/.codex/hooks.json" ] && { echo "LEAK: .codex/hooks.json deployed on personal"; fail=1; }
