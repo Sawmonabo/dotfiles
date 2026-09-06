@@ -21,7 +21,7 @@ chezmoi --config "$config" --source "$repo" init \
     --promptString "Git user name=CI User" \
     --promptString "Git default email (every repo without an override)=ci@example.invalid" \
     --promptString "Git personal email (repos under ~/dev/)=ci-personal@example.invalid" \
-    --promptString "Git work email (repos under ~/repos/ and ~/work/)=ci-work@example.invalid" \
+    --promptString "Git work email (repos under ~/repos/)=ci-work@example.invalid" \
     --promptString "Jira API token (for Codex MCP; stored locally only)=ci-placeholder" \
     --promptString "GitLab token (for Codex MCP; stored locally only)=ci-placeholder" \
     >/dev/null

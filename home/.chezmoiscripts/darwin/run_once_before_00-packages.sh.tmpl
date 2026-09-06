@@ -1,6 +1,6 @@
 {{ if eq .chezmoi.os "darwin" -}}
 #!/bin/bash
-# Bootstrap script for macOS — installs Homebrew, bat, fd, oh-my-posh, JetBrains Mono Nerd Font, tmux, TPM, gh, bitwarden-cli
+# Bootstrap script for macOS — installs Homebrew, bat, fd, oh-my-posh, JetBrains Mono Nerd Font, tmux, TPM, gh (bitwarden-cli on work machines)
 set -euo pipefail
 
 echo "==> macOS bootstrap starting..."
@@ -87,6 +87,7 @@ else
     echo "==> gh already installed, skipping."
 fi
 
+{{- if .has_work }}
 # --- Bitwarden CLI (the bw wrapper in .zshrc expects it) ---
 if ! command -v bw &>/dev/null; then
     echo "==> Installing Bitwarden CLI..."
@@ -95,6 +96,7 @@ if ! command -v bw &>/dev/null; then
 else
     echo "==> Bitwarden CLI already installed, skipping."
 fi
+{{- end }}
 
 echo "==> macOS bootstrap complete."
 {{ end -}}

@@ -32,7 +32,7 @@ sourceDir = "{{ .chezmoi.homeDir }}/dev/dotfiles"
     email = "{{ promptStringOnce . "email" "Git default email (every repo without an override)" }}"
 {{- if eq $role "both" }}
     personal_email = "{{ promptStringOnce . "personal_email" "Git personal email (repos under ~/dev/)" }}"
-    work_email = "{{ promptStringOnce . "work_email" "Git work email (repos under ~/repos/ and ~/work/)" }}"
+    work_email = "{{ promptStringOnce . "work_email" "Git work email (repos under ~/repos/)" }}"
 {{- end }}
     editor = "{{ $editor }}"
     versions_mode = "{{ promptChoiceOnce . "versions_mode" "Install pinned or latest tool versions" (list "pinned" "latest") "pinned" }}"

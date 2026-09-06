@@ -166,7 +166,7 @@ This keeps you in control — no half-finished changes get pushed, and no unexpe
 |---|---|---|---|
 | `personal` | `.email` everywhere | `~/dev` | not deployed |
 | `work` | `.email` everywhere | `~/repos` | deployed |
-| `both` | `~/dev/` personal, `~/repos/` and `~/work/` work | `~/dev` and `~/repos` | deployed |
+| `both` | `~/dev/` personal, `~/repos/` work | `~/dev` and `~/repos` | deployed |
 
 Change it later with `chezmoi init` after editing `~/.config/chezmoi/chezmoi.toml`, or delete the `machine_role` line to be prompted again.
 
@@ -174,7 +174,7 @@ Change it later with `chezmoi init` after editing `~/.config/chezmoi/chezmoi.tom
 
 ### Git identity per directory
 
-`.gitconfig` uses your default email (`.email`) globally. On a `both` machine it also emits Git `includeIf` rules: repos under `~/dev/` switch to your personal email (`.gitconfig-personal`) and repos under `~/repos/` and `~/work/` switch to your work email (`.gitconfig-work`). On a `personal` or `work` machine there are no `includeIf` rules and neither file is deployed.
+`.gitconfig` uses your default email (`.email`) globally. On a `both` machine it also emits Git `includeIf` rules: repos under `~/dev/` switch to your personal email (`.gitconfig-personal`) and repos under `~/repos/` switch to your work email (`.gitconfig-work`). On a `personal` or `work` machine there are no `includeIf` rules and neither file is deployed.
 
 To change any email, re-run `chezmoi init` or edit the source:
 

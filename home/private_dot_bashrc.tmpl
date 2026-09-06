@@ -108,4 +108,6 @@ fi
 # Added by remote-dev-workstation install
 export PATH="$HOME/bin:$PATH"
 
+{{- if .has_work }}
 {{ template "bw-wrapper.sh" . }}
+{{- end }}

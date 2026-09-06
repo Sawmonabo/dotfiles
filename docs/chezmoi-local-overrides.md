@@ -19,7 +19,7 @@ existing file conflicts, and safe first-time application workflows.
 
 You want a single chezmoi-managed `.gitconfig` that uses your personal email by
 default but automatically switches to a work email for repositories under your
-work directory (e.g., `~/work/`).
+work directory (e.g., `~/repos/`).
 
 ### Approach A: Git's `includeIf` Directive (Recommended)
 
@@ -38,7 +38,7 @@ evaluated at runtime by Git itself.
     name = {{ .name | quote }}
     email = {{ .email | quote }}
 
-[includeIf "gitdir:~/work/"]
+[includeIf "gitdir:~/repos/"]
     path = ~/.gitconfig-work
 
 [includeIf "gitdir:~/personal/"]
@@ -65,7 +65,7 @@ evaluated at runtime by Git itself.
 - On Windows, use forward slashes (not backslashes)
 - Place `includeIf` blocks at the END of `.gitconfig` so they override earlier
   settings
-- `gitdir:~/work/` automatically becomes `gitdir:~/work/**` (recursive match)
+- `gitdir:~/repos/` automatically becomes `gitdir:~/repos/**` (recursive match)
 
 **Sources:**
 - [Git Conditional Includes](https://www.edwardthomson.com/blog/git_conditional_includes)
@@ -133,7 +133,7 @@ within the same machine.
     email = {{ .email | quote }}
 
 # Directory-based overrides (works on any machine)
-[includeIf "gitdir:~/work/"]
+[includeIf "gitdir:~/repos/"]
     path = ~/.gitconfig-work
 
 [includeIf "gitdir:~/personal/"]

@@ -17,7 +17,7 @@ Within `home/`, chezmoi templates deploy to `~` on each platform using chezmoi's
 | `home/dot_zshrc.tmpl` | `~/.zshrc` | macOS only (ignored on Linux); includes uv shell completions |
 | `home/dot_gitconfig.tmpl` | `~/.gitconfig` | All platforms; emits `includeIf` only when `machine_role=both` |
 | `home/dot_gitconfig-personal.tmpl` | `~/.gitconfig-personal` | Personal email for repos under `~/dev/`; only when `machine_role=both` |
-| `home/dot_gitconfig-work.tmpl` | `~/.gitconfig-work` | Work email for repos under `~/repos/` and `~/work/`; only when `machine_role=both` |
+| `home/dot_gitconfig-work.tmpl` | `~/.gitconfig-work` | Work email for repos under `~/repos/`; only when `machine_role=both` |
 | `home/dot_claude/` | `~/.claude/` | `CLAUDE.md` and `private_settings.json` |
 | `home/dot_codex/` | `~/.codex/` | `AGENTS.md.tmpl`, `private_config.toml.tmpl`, `private_hooks.json.tmpl` (hooks only when `has_work`) |
 | `home/dot_config/` | `~/.config/` | `oh-my-posh/catppuccin_mocha.omp.json` (theme, all platforms) and `tmux/tmux.conf` |
@@ -46,7 +46,7 @@ Defined in `home/.chezmoi.toml.tmpl` via `promptStringOnce`/`promptChoiceOnce`:
 - `.email` — Git default email (all repos unless overridden)
 - `.machine_role` — `personal`, `work`, or `both` (default `personal`). Derived booleans stored alongside it: `.has_work`, `.has_personal`, `.is_wsl`. Gate templates on the booleans, never re-derive them.
 - `.personal_email` — Git personal email for `~/dev/` repos (only prompted when `machine_role=both`)
-- `.work_email` — Git work email for `~/repos/` and `~/work/` (only prompted when `machine_role=both`)
+- `.work_email` — Git work email for `~/repos/` (only prompted when `machine_role=both`)
 - `.editor` — Preferred editor (`code`/`vim`, default `code`)
 - `.versions_mode` — `pinned` or `latest` tool versions
 - `.wsl_memory` — WSL memory limit (WSL only). Default derived from the Windows host via `powershell.exe`: 75% of physical RAM
