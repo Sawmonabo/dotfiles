@@ -22,6 +22,7 @@ fi
 # brew bundle resolves aliases (postgresql -> postgresql@N), so it does not
 # reinstall on every run the way a `brew list <alias>` probe would.
 brewfile="$(mktemp)"
+trap 'rm -f "$brewfile"' EXIT
 {
     echo 'tap "jandedobbeleer/oh-my-posh"'
 {{- range .packages.darwin.brew }}
@@ -34,7 +35,6 @@ brewfile="$(mktemp)"
 echo "==> Installing formulae and casks from packages.toml..."
 # --no-upgrade: bootstrap installs what is missing, it never upgrades what is there.
 brew bundle install --file="$brewfile" --no-upgrade
-rm -f "$brewfile"
 
 {{ if .has_work -}}
 # --- Bitwarden CLI (the bw wrapper in .zshrc expects it) ---
