@@ -66,15 +66,22 @@ chezmoi apply -v
 ### macOS
 
 - [bat](https://github.com/sharkdp/bat) (via Homebrew)
+- [fd](https://github.com/sharkdp/fd) (via Homebrew)
 - [oh-my-posh](https://ohmyposh.dev/) (via Homebrew tap)
 - [JetBrains Mono Nerd Font](https://www.nerdfonts.com/) (via Homebrew cask)
+- [tmux](https://github.com/tmux/tmux) and [TPM](https://github.com/tmux-plugins/tpm)
 - [gh](https://cli.github.com/) (via Homebrew)
+- [bitwarden-cli](https://bitwarden.com/help/cli/) (via Homebrew, work machines only)
 
 ### Linux / WSL
 
 - bat (via cargo)
+- fd (apt `fd-find`, symlinked as `fd` in `~/.local/bin`)
 - oh-my-posh (via install script)
 - JetBrains Mono Nerd Font (via GitHub release)
+- gh (upstream static binary in `~/.local/bin`)
+- tmux and TPM
+- bitwarden-cli (upstream zip in `~/.local/bin`, work machines only)
 
 **Runtime managers** (`run_once_after_10`): nvm, uv, rustup, bun, Go — versions
 from `home/.chezmoidata/versions.toml`.
@@ -212,7 +219,7 @@ chezmoi apply
     │   └── packages.toml                                    # apt package names + VS Code extension IDs
     ├── .chezmoitemplates/
     │   ├── nvm-load.sh                                      # Shared nvm guard+source fragment
-    │   └── bw-wrapper.sh                                    # Shared Bitwarden unlock/lock wrapper
+    │   └── bw-wrapper.sh                                    # Bitwarden unlock/lock wrapper (work machines only)
     ├── .chezmoiscripts/
     │   ├── linux/                                           # run_once_before_00-packages.sh.tmpl, etc.
     │   ├── darwin/                                          # run_once_before_00-packages.sh.tmpl, etc.

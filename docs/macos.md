@@ -53,9 +53,13 @@ chezmoi verify && echo "All good"
 |------|--------|-------|
 | Homebrew | Official install script | Detects ARM vs Intel path |
 | bat | `brew install bat` | cat replacement with syntax highlighting |
+| fd | `brew install fd` | find replacement |
 | oh-my-posh | `brew install jandedobbeleer/oh-my-posh/oh-my-posh` | Prompt theme engine |
 | JetBrains Mono Nerd Font | `brew install --cask font-jetbrains-mono-nerd-font` | Required for prompt icons |
+| tmux | `brew install tmux` | Terminal multiplexer |
+| TPM | `git clone` into `~/.tmux/plugins/tpm` | tmux plugin manager |
 | gh (GitHub CLI) | `brew install gh` | GitHub operations from terminal |
+| bitwarden-cli | `brew install bitwarden-cli` | Work machines only (`machine_role` work or both) |
 
 ## Shell: zsh
 

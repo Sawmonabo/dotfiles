@@ -12,7 +12,7 @@ Within `home/`, chezmoi templates deploy to `~` on each platform using chezmoi's
 
 | Source file | Deploys to | Notes |
 |---|---|---|
-| `home/.chezmoi.toml.tmpl` | `~/.config/chezmoi/chezmoi.toml` | Interactive prompts for name, emails, editor, versions mode; WSL memory/paths and API tokens |
+| `home/.chezmoi.toml.tmpl` | `~/.config/chezmoi/chezmoi.toml` | Interactive prompts for name, email, machine role, editor, versions mode; personal/work emails only for `both`; API tokens only when `has_work`; WSL sizing on WSL |
 | `home/private_dot_bashrc.tmpl` | `~/.bashrc` | Linux/WSL only (ignored on macOS) |
 | `home/dot_zshrc.tmpl` | `~/.zshrc` | macOS only (ignored on Linux); includes uv shell completions |
 | `home/dot_gitconfig.tmpl` | `~/.gitconfig` | All platforms; emits `includeIf` only when `machine_role=both` |
@@ -21,18 +21,18 @@ Within `home/`, chezmoi templates deploy to `~` on each platform using chezmoi's
 | `home/dot_claude/` | `~/.claude/` | `CLAUDE.md` and `private_settings.json` |
 | `home/dot_codex/` | `~/.codex/` | `AGENTS.md.tmpl`, `modify_private_config.toml.tmpl`, `private_hooks.json.tmpl` (hooks only when `has_work`). The config is a chezmoi `modify_` template: it renders to a Python script that merges the managed body with the Codex-owned tables read from the existing `~/.codex/config.toml`, so Codex's own runtime state survives an apply. |
 | `home/dot_config/` | `~/.config/` | `oh-my-posh/catppuccin_mocha.omp.json` (theme, all platforms) and `tmux/tmux.conf` |
-| `home/.chezmoiscripts/linux/run_once_before_00-packages.sh.tmpl` | (run script) | Linux/WSL bootstrap: build-essential, bat, fd (apt `fd-find`, symlinked `fdfind`→`fd` in ~/.local/bin), oh-my-posh + themes, Nerd Font, gh (upstream static binary to ~/.local/bin, no sudo), tmux, TPM |
+| `home/.chezmoiscripts/linux/run_once_before_00-packages.sh.tmpl` | (run script) | Linux/WSL bootstrap: build-essential, bat, fd (apt `fd-find`, symlinked `fdfind`→`fd` in ~/.local/bin), oh-my-posh + themes, Nerd Font, gh (upstream static binary to ~/.local/bin, no sudo), tmux, TPM; bitwarden-cli (static binary to ~/.local/bin) only when `has_work` |
 | `home/.chezmoiscripts/linux/run_once_after_10-runtime-managers.sh.tmpl` | (run script) | Installs nvm, uv, rustup, bun, Go managers |
 | `home/.chezmoiscripts/linux/run_onchange_after_20-runtimes.sh.tmpl` | (run script) | Pinned Node versions + default alias, uv Pythons, Rust toolchain; re-runs when pins change |
 | `home/.chezmoiscripts/linux/run_onchange_after_30-global-tools.sh.tmpl` | (run script) | codex, claude, corepack pnpm/yarn, uv tools, cargo tools, go tools, podman |
 | `home/.chezmoiscripts/shared/run_onchange_after_40-tmux-plugins.sh.tmpl` | (run script) | Every platform; installs tmux plugins via TPM when tmux.conf changes |
-| `home/.chezmoiscripts/darwin/run_once_before_00-packages.sh.tmpl` | (run script) | macOS bootstrap: Homebrew, bat, fd, oh-my-posh, Nerd Font, gh |
+| `home/.chezmoiscripts/darwin/run_once_before_00-packages.sh.tmpl` | (run script) | macOS bootstrap: Homebrew, bat, fd, oh-my-posh, Nerd Font, tmux, TPM, gh; bitwarden-cli only when `has_work` |
 | `home/.chezmoiscripts/darwin/run_onchange_after_10-terminal-font.sh.tmpl` | (run script) | Instructions for Terminal.app font setup (macOS only) |
 | `home/.chezmoiscripts/wsl/run_once_before_00-packages-windows.sh.tmpl` | (run script) | WSL only; installs oh-my-posh.exe, fonts, Windows Terminal settings, PowerShell profile |
 | `home/.chezmoiscripts/wsl/run_onchange_after_10-deploy-windows-configs.sh.tmpl` | (run script) | WSL only; merges `.wslconfig` (memory/processors/swap from chezmoi data, mirrored networking, vmIdleTimeout, autoMemoryReclaim, sparseVhd) and deploys RestartWSL scripts to Windows |
 | `home/.chezmoiscripts/wsl/run_onchange_after_20-sysctl.sh.tmpl` | (run script) | WSL only; writes `/etc/sysctl.d/99-dev.conf` (`vm.swappiness=10`); needs sudo, skips gracefully without a tty |
 | `home/.chezmoitemplates/nvm-load.sh` | (template fragment) | Shared NVM_DIR export + `source nvm.sh` guard block, included via `{{ template "nvm-load.sh" }}` |
-| `home/.chezmoitemplates/bw-wrapper.sh` | (template fragment) | Bitwarden `bw unlock`/`bw lock` wrapper shared by `.bashrc` and `.zshrc` |
+| `home/.chezmoitemplates/bw-wrapper.sh` | (template fragment) | Bitwarden `bw unlock`/`bw lock` wrapper, included by `.bashrc` and `.zshrc` only when `has_work` |
 | `home/.chezmoidata/versions.toml` | (data) | Pinned tool/runtime versions used by `versions_mode=pinned` |
 | `home/.chezmoidata/packages.toml` | (data) | Recorded apt package names and VS Code extension IDs (manual reference, not scripted) |
 | `scripts/scratch-init.sh` | (dev tool) | Generates a throwaway `chezmoi.toml` for one role with every prompt answered; prompt-text keys must match `.chezmoi.toml.tmpl` |
