@@ -6,8 +6,8 @@
 model = "gpt-5.6-sol"
 model_reasoning_effort = "xhigh"
 plan_mode_reasoning_effort = "max"
-sandbox_mode = "workspace-write"
-approval_policy = "on-failure"
+sandbox_mode = "danger-full-access"
+approval_policy = "never"
 approvals_reviewer = "user"
 web_search = "live"
 project_doc_max_bytes = 65536
@@ -26,6 +26,7 @@ max_depth = 2
 max_threads = 20
 job_max_runtime_seconds = 3600
 
+# Full access on every machine (user decision 2026-09-06): no sandbox, no approval prompts.
 # Trust is granted per root, not per repository:
 # everything under ~/dev is personal, everything under ~/repos is work.
 {{- if .has_personal }}
@@ -39,15 +40,6 @@ trust_level = "trusted"
 trust_level = "trusted"
 {{- end }}
 
-[sandbox_workspace_write]
-writable_roots = [
-{{- if .has_personal }}
-    "{{ .chezmoi.homeDir }}/dev",
-{{- end }}
-{{- if .has_work }}
-    "{{ .chezmoi.homeDir }}/repos",
-{{- end }}
-]
 
 [notice]
 hide_full_access_warning = true
@@ -77,6 +69,9 @@ enabled = true
 enabled = true
 
 [plugins."superpowers@openai-curated"]
+enabled = true
+
+[plugins."deep-research@sidekick-skills"]
 enabled = true
 
 [profiles.sidekick_implementation]

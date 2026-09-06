@@ -49,35 +49,22 @@
     "refreshInterval": 2
   },
   "enabledPlugins": {
-    "code-review@claude-plugins-official": true,
-    "context7@claude-plugins-official": false,
-    "code-simplifier@claude-plugins-official": true,
-    "ralph-loop@claude-plugins-official": true,
-    "pr-review-toolkit@claude-plugins-official": true,
-    "claude-md-management@claude-plugins-official": true,
-    "claude-code-setup@claude-plugins-official": true,
-    "explanatory-output-style@claude-plugins-official": true,
-    "hookify@claude-plugins-official": true,
-    "mcp-server-dev@claude-plugins-official": false,
     "superpowers@claude-plugins-official": true,
+    "code-review@claude-plugins-official": true,
+    "code-simplifier@claude-plugins-official": true,
+    "claude-md-management@claude-plugins-official": true,
     "skill-creator@claude-plugins-official": true,
+    "context7@claude-plugins-official": true,
     "codex@openai-codex": true,
-    "ui-ux-pro-max@ui-ux-pro-max-skill": true,
     "deep-research@sidekick-skills": true,
-    "code-modernization@claude-plugins-official": true,
-    "memory-audit@sidekick-skills": true
+    "memory-audit@sidekick-skills": true,
+    "post-mortem@sidekick-skills": true
   },
   "extraKnownMarketplaces": {
     "openai-codex": {
       "source": {
         "source": "github",
         "repo": "openai/codex-plugin-cc"
-      }
-    },
-    "ui-ux-pro-max-skill": {
-      "source": {
-        "source": "github",
-        "repo": "nextlevelbuilder/ui-ux-pro-max-skill"
       }
     },
     "sidekick-skills": {
