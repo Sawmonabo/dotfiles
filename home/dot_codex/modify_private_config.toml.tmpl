@@ -116,10 +116,13 @@ enabled = true
 
 [mcp_servers.dispatch-atlassian]
 enabled = false
-command = "{{ .chezmoi.homeDir }}/.nvm/versions/node/v{{ .versions.node_default }}/bin/node"
-args = ["{{ .chezmoi.homeDir }}/repos/ai-devtools/dispatch-atlassian/dist/index.js"]
+# Launched through nvm-exec so the server follows `nvm alias default` in either
+# versions_mode; a hardcoded ~/.nvm/versions/node/vX path only exists in pinned mode.
+command = "{{ .chezmoi.homeDir }}/.nvm/nvm-exec"
+args = ["node", "{{ .chezmoi.homeDir }}/repos/ai-devtools/dispatch-atlassian/dist/index.js"]
 
 [mcp_servers.dispatch-atlassian.env]
+NODE_VERSION = "default"
 JIRA_BASE_URL = "https://fortressinfosec.atlassian.net"
 JIRA_EMAIL = "{{ if eq .machine_role "both" }}{{ .work_email }}{{ else }}{{ .email }}{{ end }}"
 JIRA_API_TOKEN = "{{ .jira_api_token }}"
@@ -129,10 +132,13 @@ approval_mode = "approve"
 {{ end }}
 [mcp_servers.dispatch-gitlab]
 enabled = false
-command = "{{ .chezmoi.homeDir }}/.nvm/versions/node/v{{ .versions.node_default }}/bin/node"
-args = ["{{ .chezmoi.homeDir }}/repos/ai-devtools/dispatch-gitlab/dist/index.js"]
+# Launched through nvm-exec so the server follows `nvm alias default` in either
+# versions_mode; a hardcoded ~/.nvm/versions/node/vX path only exists in pinned mode.
+command = "{{ .chezmoi.homeDir }}/.nvm/nvm-exec"
+args = ["node", "{{ .chezmoi.homeDir }}/repos/ai-devtools/dispatch-gitlab/dist/index.js"]
 
 [mcp_servers.dispatch-gitlab.env]
+NODE_VERSION = "default"
 GITLAB_URL = "https://gitlab.com/fortressinfosec"
 GITLAB_TOKEN = "{{ .gitlab_token }}"
 
