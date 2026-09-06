@@ -8,16 +8,22 @@
 # After-phase and best-effort on purpose: files are already deployed and a
 # marketplace hiccup must not fail the apply.
 #
-# Hand-installed apps: `brew bundle` adopts an app that is already in
-# /Applications, whatever its version. Adoption fails when the cask links a
-# binary that the older app does not contain, and Homebrew's rollback then
-# DELETES the app (observed: Obsidian 1.8 vs cask 1.13, which added
-# obsidian-cli). So every cask is classified first:
-#   - managed by Homebrew, or app absent      -> brew bundle (no-op / fresh install)
-#   - present, every linked binary exists     -> brew bundle (clean adopt in place)
-#   - present, a linked binary is missing:
-#       app not running                       -> brew install --cask --force (replace)
-#       app running                           -> skipped with a note; retried next apply
+# Hand-installed apps. `brew bundle` adopts an app that is already in
+# /Applications, whatever its version — but when anything goes wrong midway,
+# Homebrew's rollback DELETES the app (observed twice: Obsidian 1.8, whose
+# cask links an obsidian-cli the old app lacked; Docker Desktop, whose cask
+# links into the root-owned /usr/local/bin and so needs sudo, which has no
+# terminal under a non-interactive apply). Two defences:
+#   1. classify every cask first and never hand a predictable failure to brew:
+#        managed by Homebrew, or app absent        -> brew bundle (no-op / fresh install)
+#        present, linked binaries exist, targets
+#          writable (or sudo can prompt)           -> brew bundle (adopt in place)
+#        present, a linked binary is missing:
+#          app not running                         -> brew install --cask --force (replace)
+#          app running                             -> skipped with a note; retried next apply
+#        present, linking needs sudo, no terminal  -> skipped with a note; retried next apply
+#   2. before brew touches a present app, clone it (APFS, instant, no extra
+#      space) and put it back if it is gone afterwards.
 set -uo pipefail
 export HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 HOMEBREW_NO_ENV_HINTS=1
 if [ -x /opt/homebrew/bin/brew ]; then
@@ -29,13 +35,18 @@ fi
 # Homebrew's default appdir. The binary paths in `brew info --json` are already
 # expanded against the real appdir, so only the app-bundle probe uses this.
 appdir="/Applications"
+prefix="$(brew --prefix)"
 managed_casks="$(brew list --cask 2>/dev/null || true)"
 bundle_casks=()
 replace_casks=()
+touched_apps=()    # apps brew will adopt or replace: cloned first, restored if lost
 skipped=()
 
+# sudo can prompt when stdin is a terminal, or is passwordless.
+sudo_available() { [ -t 0 ] || sudo -n true 2>/dev/null; }
+
 classify() {
-    local cask="$1" info app binary missing=0
+    local cask="$1" info app binary target missing=0 needs_sudo=0
     if grep -qx "$cask" <<< "$managed_casks"; then
         bundle_casks+=("$cask"); return
     fi
@@ -46,21 +57,51 @@ classify() {
     if [ -z "$app" ] || [ ! -d "$appdir/$app" ]; then
         bundle_casks+=("$cask"); return    # no app artifact (fonts) or nothing to adopt
     fi
+    # Every binary the cask links must exist in the app that is there ...
     while IFS= read -r binary; do
         [ -n "$binary" ] && [ ! -e "$binary" ] && missing=1
     done < <(jq -r '.casks[0].artifacts[] | select(.binary) | .binary[0] | strings' <<< "$info")
+    # ... and every link target must land in a directory this user can write,
+    # otherwise Homebrew escalates with sudo.
+    while IFS= read -r target; do
+        [ -n "$target" ] && [ ! -w "$(dirname "$target")" ] && needs_sudo=1
+    done < <(jq -r --arg prefix "$prefix" '.casks[0].artifacts[] | select(.binary) | .binary
+        | if (.[1] | type) == "object" and ((.[1].target // "") | length) > 0
+          then .[1].target else ($prefix + "/bin/" + (.[0] | split("/") | last)) end' <<< "$info")
+    if [ "$needs_sudo" -eq 1 ] && ! sudo_available; then
+        skipped+=("$cask: linking its binaries needs sudo; run chezmoi apply from a terminal so sudo can prompt (retried next apply)")
+        return
+    fi
     if [ "$missing" -eq 0 ]; then
-        bundle_casks+=("$cask"); return    # clean adopt
+        touched_apps+=("$app"); bundle_casks+=("$cask"); return    # adopt in place
     fi
     if pgrep -qf "$appdir/$app/"; then
         skipped+=("$cask: $app is running and lacks a binary the cask links; quit it and re-run chezmoi apply to replace it with the cask version")
     else
-        replace_casks+=("$cask")
+        touched_apps+=("$app"); replace_casks+=("$cask")
     fi
 }
 {{- range .packages.darwin.cask }}
 classify "{{ . }}"
 {{- end }}
+
+# --- safety net: clone every app brew is about to adopt or replace ---
+snapshot="$HOME/.cache/chezmoi-cask-snapshot"
+rm -rf "$snapshot"; mkdir -p "$snapshot"
+for app in ${touched_apps[@]+"${touched_apps[@]}"}; do
+    # -c clones on APFS (instant, shares blocks); a plain copy is the fallback.
+    cp -Rc "$appdir/$app" "$snapshot/$app" 2>/dev/null || cp -R "$appdir/$app" "$snapshot/$app" \
+        || echo "    WARNING: could not snapshot $app before handing it to Homebrew" >&2
+done
+restore_lost_apps() {
+    local app
+    for app in ${touched_apps[@]+"${touched_apps[@]}"}; do
+        if [ ! -d "$appdir/$app" ] && [ -d "$snapshot/$app" ]; then
+            echo "    WARNING: Homebrew removed $app; restoring the pre-apply copy" >&2
+            mv "$snapshot/$app" "$appdir/$app" || echo "    WARNING: restore of $app failed; copy is in $snapshot" >&2
+        fi
+    done
+}
 
 for cask in ${replace_casks[@]+"${replace_casks[@]}"}; do
     echo "==> Replacing hand-installed $cask with the cask version (it is not running)..."
@@ -94,6 +135,9 @@ else
     echo "==> Installing casks and VS Code extensions from packages.toml..."
     brew bundle install --file="$bundle" --no-upgrade || skipped+=("brew bundle reported failures (see above); retried on the next apply")
 fi
+
+restore_lost_apps
+rm -rf "$snapshot"
 
 if [ ${#skipped[@]} -gt 0 ]; then
     printf '    WARNING: %s\n' "${skipped[@]}" >&2
