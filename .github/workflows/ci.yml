@@ -13,10 +13,6 @@ jobs:
         machine_role: [personal, work, both]
         versions_mode: [pinned, latest]
         extra: ['']
-        exclude:
-          # versions_mode only affects the Linux runtime scripts
-          - os: macos-latest
-            versions_mode: latest
         include:
           # The wsl/ scripts render empty on every other host, so lint them once
           # against a config that claims to be WSL.
