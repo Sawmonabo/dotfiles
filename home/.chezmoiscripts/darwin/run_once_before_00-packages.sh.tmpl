@@ -18,23 +18,40 @@ elif [ -x /usr/local/bin/brew ]; then
     eval "$(/usr/local/bin/brew shellenv)"
 fi
 
-# --- Formulae and casks (idempotent: brew bundle skips what is installed) ---
+# --- Formulae (strict; idempotent: brew bundle skips what is installed) ---
 # brew bundle resolves aliases (postgresql -> postgresql@N), so it does not
 # reinstall on every run the way a `brew list <alias>` probe would.
+# --no-upgrade: bootstrap installs what is missing, it never upgrades what is there.
 brewfile="$(mktemp)"
-trap 'rm -f "$brewfile"' EXIT
+caskfile="$(mktemp)"
+trap 'rm -f "$brewfile" "$caskfile"' EXIT
 {
     echo 'tap "jandedobbeleer/oh-my-posh"'
 {{- range .packages.darwin.brew }}
     echo 'brew "{{ . }}"'
 {{- end }}
+} > "$brewfile"
+echo "==> Installing formulae from packages.toml..."
+brew bundle install --file="$brewfile" --no-upgrade
+
+# --- Casks (best effort) ---
+# brew bundle adopts an app that is already in /Applications only when its
+# version matches the cask. A hand-installed app at another version makes
+# that cask fail, and this script runs before any file deploys, so a cask
+# failure must not abort the apply. Report it and carry on.
+{
 {{- range .packages.darwin.cask }}
     echo 'cask "{{ . }}"'
 {{- end }}
-} > "$brewfile"
-echo "==> Installing formulae and casks from packages.toml..."
-# --no-upgrade: bootstrap installs what is missing, it never upgrades what is there.
-brew bundle install --file="$brewfile" --no-upgrade
+} > "$caskfile"
+echo "==> Installing casks from packages.toml..."
+if ! brew bundle install --file="$caskfile" --no-upgrade; then
+    echo "    WARNING: one or more casks did not install (see above)." >&2
+    echo "    An app already in /Applications at a different version cannot be adopted." >&2
+    echo "    Let the app update itself, or replace it with the cask version, then run:" >&2
+    echo "        brew install --cask --adopt <name>      # same version: adopt in place" >&2
+    echo "        brew install --cask --force <name>      # replace with the cask version" >&2
+fi
 
 {{ if .has_work -}}
 # --- Bitwarden CLI (the bw wrapper in .zshrc expects it) ---
