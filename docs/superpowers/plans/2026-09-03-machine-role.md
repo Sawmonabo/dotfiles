@@ -89,7 +89,7 @@ chezmoi --config "$config" --source "$repo" init \
     --promptString "Git user name=CI User" \
     --promptString "Git default email (every repo without an override)=ci@example.invalid" \
     --promptString "Git personal email (repos under ~/dev/)=ci-personal@example.invalid" \
-    --promptString "Git work email (repos under ~/repos/ and ~/work/)=ci-work@example.invalid" \
+    --promptString "Git work email (repos under ~/repos/)=ci-work@example.invalid" \
     --promptString "Jira API token (for Codex MCP; stored locally only)=ci-placeholder" \
     --promptString "GitLab token (for Codex MCP; stored locally only)=ci-placeholder" \
     >/dev/null
@@ -224,7 +224,7 @@ sourceDir = "{{ .chezmoi.homeDir }}/dev/dotfiles"
     email = "{{ promptStringOnce . "email" "Git default email (every repo without an override)" }}"
 {{- if eq $role "both" }}
     personal_email = "{{ promptStringOnce . "personal_email" "Git personal email (repos under ~/dev/)" }}"
-    work_email = "{{ promptStringOnce . "work_email" "Git work email (repos under ~/repos/ and ~/work/)" }}"
+    work_email = "{{ promptStringOnce . "work_email" "Git work email (repos under ~/repos/)" }}"
 {{- end }}
     editor = "{{ promptChoiceOnce . "editor" "Preferred editor" (list "code" "vim") "code" }}"
     versions_mode = "{{ promptChoiceOnce . "versions_mode" "Install pinned or latest tool versions" (list "pinned" "latest") "pinned" }}"
@@ -396,13 +396,11 @@ To:
 {{- if eq .machine_role "both" }}
 
 # Directory-based identity overrides (machine_role = both).
-# ~/dev/ is personal, ~/repos/ and ~/work/ are work. Single-role machines
+# ~/dev/ is personal, ~/repos/ is work. Single-role machines
 # use [user] email everywhere and deploy neither override file.
 [includeIf "gitdir:~/dev/"]
     path = ~/.gitconfig-personal
 [includeIf "gitdir:~/repos/"]
-    path = ~/.gitconfig-work
-[includeIf "gitdir:~/work/"]
     path = ~/.gitconfig-work
 {{- end }}
 ```
@@ -411,7 +409,7 @@ To:
 
 ```
 # Work git overrides
-# Applied automatically for repos under ~/repos/ and ~/work/ via includeIf
+# Applied automatically for repos under ~/repos/ via includeIf
 [user]
     email = {{ .work_email }}
 ```
@@ -427,7 +425,7 @@ for role in personal work both; do
 done
 ```
 
-Expected: `personal` and `work` print `(no includeIf)` and list only `.gitconfig`. `both` prints three includeIf entries and lists `.gitconfig`, `.gitconfig-personal`, `.gitconfig-work`.
+Expected: `personal` and `work` print `(no includeIf)` and list only `.gitconfig`. `both` prints two includeIf entries and lists `.gitconfig`, `.gitconfig-personal`, `.gitconfig-work`.
 
 - [ ] **Step 4: Commit**
 
@@ -496,16 +494,6 @@ trust_level = "trusted"
 trust_level = "trusted"
 {{- end }}
 
-[sandbox_workspace_write]
-writable_roots = [
-{{- if .has_personal }}
-    "{{ .chezmoi.homeDir }}/dev",
-{{- end }}
-{{- if .has_work }}
-    "{{ .chezmoi.homeDir }}/repos",
-{{- end }}
-]
-
 [notice]
 hide_full_access_warning = true
 hide_rate_limit_model_nudge = true
@@ -551,10 +539,6 @@ prevent_idle_sleep = true
 
 [plugins."coderabbit@openai-curated"]
 enabled = true
-
-[hooks.state."{{ .chezmoi.homeDir }}/.codex/hooks.json:user_prompt_submit:0:0"]
-enabled = true
-trusted_hash = "sha256:78307189bdd41ce33770cf4ab894bca9463ba3cf0b7302700329d34ae96025b0"
 
 [mcp_servers.dispatch-atlassian]
 enabled = false
@@ -816,12 +800,13 @@ Edit its second line comment to read:
 
 Change line 2 to:
 ```
-# Bootstrap script for macOS — installs Homebrew, bat, fd, oh-my-posh, JetBrains Mono Nerd Font, tmux, TPM, gh, bitwarden-cli
+# Bootstrap script for macOS — installs Homebrew, bat, fd, oh-my-posh, JetBrains Mono Nerd Font, tmux, TPM, gh (bitwarden-cli on work machines)
 ```
 
 Insert before `echo "==> macOS bootstrap complete."`:
 ```bash
-# --- Bitwarden CLI (the bw wrapper in .zshrc expects it) ---
+{{- if .has_work }}
+# --- Bitwarden CLI (the bw wrapper in .zshrc expects it; work machines only) ---
 if ! command -v bw &>/dev/null; then
     echo "==> Installing Bitwarden CLI..."
     brew install bitwarden-cli
@@ -829,6 +814,7 @@ if ! command -v bw &>/dev/null; then
 else
     echo "==> Bitwarden CLI already installed, skipping."
 fi
+{{- end }}
 ```
 
 - [ ] **Step 3: Verify**
@@ -844,7 +830,7 @@ Expected: `OK [personal/pinned]`; the shared script renders with its shebang and
 
 ```bash
 git add home/.chezmoiscripts/
-git commit -m "scripts: move tmux-plugins to shared/, install bitwarden-cli on macOS"
+git commit -m "scripts: move tmux-plugins to shared/, install bitwarden-cli on macOS work machines"
 ```
 
 ---
@@ -915,7 +901,7 @@ git commit -m "ci: matrix over os x machine_role, run render-check on macOS too"
 Add these rows to the Key files table:
 
 ```
-| `home/dot_gitconfig-work.tmpl` | `~/.gitconfig-work` | Work email for repos under `~/repos/` and `~/work/`; only when `machine_role=both` |
+| `home/dot_gitconfig-work.tmpl` | `~/.gitconfig-work` | Work email for repos under `~/repos/`; only when `machine_role=both` |
 | `home/.chezmoiscripts/shared/run_onchange_after_40-tmux-plugins.sh.tmpl` | (run script) | Every platform; installs tmux plugins via TPM when tmux.conf changes |
 | `home/.chezmoitemplates/bw-wrapper.sh` | (template fragment) | Bitwarden `bw unlock`/`bw lock` wrapper shared by `.bashrc` and `.zshrc` |
 | `scripts/scratch-init.sh` | (dev tool) | Generates a throwaway `chezmoi.toml` for one role with every prompt answered; prompt-text keys must match `.chezmoi.toml.tmpl` |
@@ -928,7 +914,7 @@ Under Template variables add:
 
 ```
 - `.machine_role` — `personal`, `work`, or `both` (default `personal`). Derived booleans stored alongside it: `.has_work`, `.has_personal`, `.is_wsl`. Gate templates on the booleans, never re-derive them.
-- `.work_email` — Git work email for `~/repos/` and `~/work/` (only prompted when `machine_role=both`)
+- `.work_email` — Git work email for `~/repos/` (only prompted when `machine_role=both`)
 ```
 Change `.personal_email` to say it is only prompted when `machine_role=both`, and the token lines to say "only prompted when `has_work`". Leave `.editor` as `code`/`vim`.
 
@@ -953,7 +939,7 @@ Add after the "How Syncing Works" section:
 |---|---|---|---|
 | `personal` | `.email` everywhere | `~/dev` | not deployed |
 | `work` | `.email` everywhere | `~/repos` | deployed |
-| `both` | `~/dev/` personal, `~/repos/` and `~/work/` work | `~/dev` and `~/repos` | deployed |
+| `both` | `~/dev/` personal, `~/repos/` work | `~/dev` and `~/repos` | deployed |
 
 Change it later with `chezmoi init` after editing `~/.config/chezmoi/chezmoi.toml`, or delete the `machine_role` line to be prompted again.
 ```
@@ -1024,7 +1010,7 @@ chezmoi diff --no-pager
 ```
 
 Expected differences on this Mac, and nothing else:
-- `.codex/config.toml`: trust collapses to `[projects."/Users/sawmonabo/dev"]`, sandbox stays `danger-full-access` / `never`, `deep-research@sidekick-skills` plugin kept, no dispatch or Fortress content, no `/home/sabossedgh` anywhere.
+- `.codex/config.toml`: trust collapses to `[projects."/Users/sawmonabo/dev"]`, sandbox stays `danger-full-access` / `never`, `deep-research@sidekick-skills` plugin kept, `[marketplaces.sidekick-skills]` keeps its static `source_type`/`source`/`ref` keys while Codex-owned `last_updated`/`last_revision` are dropped (Codex re-adds them on its next refresh; expect that two-line diff afterwards), no dispatch or Fortress content, no `/home/sabossedgh` anywhere.
 - `.claude/settings.json`: global plugins become exactly superpowers, deep-research, memory-audit, claude-md-management, skill-creator, code-review, code-simplifier, codex, context7, post-mortem (measured from 90 days of transcripts on 2026-09-06); language servers and domain packs are per-repo.
 - `.codex/AGENTS.md`: personal instructions without the path-scoped policy.
 - `.codex/hooks.json`: not created.
@@ -1032,7 +1018,7 @@ Expected differences on this Mac, and nothing else:
 - `.zshrc`: `EDITOR` becomes `code --wait`, the `code()` Cursor launcher and the agent-brain block (with its duplicate `alias claude=`) are removed, the `claude()` function is unchanged and present exactly once, Bitwarden wrapper added, `~/.zshrc.local` sourced.
 - `.claude/scripts`: the symlink into `~/dev/ai-sidekicks` is deleted and replaced by a real directory containing `statusline.py`. `.claude/settings.json` switches `statusLine.command` to `python3 ~/.claude/scripts/statusline.py`.
 - `.claude/CLAUDE.md`, `.local/bin/claude-costs` as in the original audit.
-- Scripts to run: `darwin/00-packages.sh` (installs `fd` and `bitwarden-cli` only), `darwin/10-terminal-font.sh`, `shared/40-tmux-plugins.sh`.
+- Scripts to run: `darwin/00-packages.sh` (installs `fd` only; bitwarden-cli is work-only), `darwin/10-terminal-font.sh`, `shared/40-tmux-plugins.sh`.
 
 - [ ] **Step 5: STOP. Show the diff to the user and wait for explicit approval.**
 
@@ -1042,6 +1028,15 @@ Do not run `chezmoi apply` in this task without the user saying so. When approve
 chezmoi apply -v
 exec zsh -l
 ```
+
+Then confirm Codex still resolves the deep-research plugin (marketplace registration survived the managed file):
+
+```bash
+grep -A3 '^\[marketplaces.sidekick-skills\]' ~/.codex/config.toml
+codex --version && ls ~/.codex/plugins/cache/sidekick-skills
+```
+
+Expected: the block shows `source_type = "git"`, the sidekick-skills source URL, and `ref = "marketplace"`; the plugin cache directory still exists.
 
 Then verify the status line is the repo's, not the old symlinked script:
 
@@ -1108,7 +1103,6 @@ brew = [
   "age",
   "bat",
   "bats-core",
-  "bitwarden-cli",
   "bun",
   "chezmoi",
   "docker",
@@ -1273,7 +1267,7 @@ grep -c '^    "' /tmp/darwin-00.sh
 python3 -c "import tomllib; d=tomllib.load(open('home/.chezmoidata/packages.toml','rb'))['packages']; print(len(d['darwin']['brew']), len(d['darwin']['cask']), len(d['vscode_extensions']))"
 ```
 
-Expected: `OK [personal/pinned]`, `lint ok`, quoted-line count equals formulae + casks + extensions, and the python line prints `26 8 71`. Task 7's standalone bitwarden-cli block is superseded by this list; confirm the rewritten script has no `brew install bitwarden-cli` line of its own.
+Expected: `OK [personal/pinned]`, `lint ok`, quoted-line count equals formulae + casks + extensions, and the python line prints `25 8 71`. Keep Task 7's `{{- if .has_work }}` bitwarden-cli block in the rewritten script, after the casks section; it must never appear in the data list because the list is role-neutral.
 
 - [ ] **Step 5: Commit**
 

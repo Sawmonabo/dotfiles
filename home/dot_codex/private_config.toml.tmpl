@@ -1,7 +1,9 @@
 # :schema https://developers.openai.com/codex/config-schema.json
 # Managed by chezmoi. Rendered for machine_role = {{ .machine_role }}.
-# Codex rewrites some sections itself (model_availability_nux, marketplaces,
-# model_migrations, hooks.state); those are intentionally not managed here.
+# Codex rewrites some sections itself (model_availability_nux, model_migrations,
+# hooks.state, and the last_updated/last_revision keys under [marketplaces]);
+# those are intentionally not managed here. The static marketplace source IS
+# managed because the deep-research plugin cannot resolve without it.
 
 model = "gpt-6-astra"
 model_reasoning_effort = "xhigh"
@@ -73,6 +75,11 @@ enabled = true
 
 [plugins."deep-research@sidekick-skills"]
 enabled = true
+
+[marketplaces.sidekick-skills]
+source_type = "git"
+source = "https://github.com/Sawmonabo/sidekick-skills.git"
+ref = "marketplace"
 
 [profiles.sidekick_implementation]
 approvals_reviewer = "user"
