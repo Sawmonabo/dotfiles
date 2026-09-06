@@ -1053,6 +1053,8 @@ type claude; echo "$EDITOR"; type code
 
 Expected: the three `echo` confirmations print, `settings.json` shows `"command": "python3 ~/.claude/scripts/statusline.py"` with `refreshInterval: 2`, the status line prints one line of coloured segments containing `Fable` and `ctx 12%`, `claude` is reported as an alias, `EDITOR` is `code --wait`, and `code` resolves to the VS Code binary rather than a shell function. Open a new Claude Code session and confirm the lualine-style bar renders.
 
+Then confirm the output style: open a Claude Code session and run `/output-style`; it must show `Concise` selected (built-in since 2.1.260). If the picker does not list Concise, the installed Claude Code is older than 2.1.260: run `claude update`.
+
 Then check Codex trust:
 
 ```bash

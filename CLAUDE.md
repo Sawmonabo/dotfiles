@@ -67,6 +67,7 @@ Defined in `home/.chezmoi.toml.tmpl` via `promptStringOnce`/`promptChoiceOnce`:
 - **File naming**: Follow chezmoi conventions (`dot_`, `private_`, `.tmpl`, `run_once_before_`, `run_onchange_after_`)
 - **Script naming**: `run_{once|onchange}_{before|after}_NN-<verb-noun>.sh.tmpl`, one platform directory per script; `NN` orders scripts within a directory
 - **Local overrides**: `~/.bash_aliases` is sourced by `.bashrc` but not managed by chezmoi
+- **Output style**: `outputStyle` is the built-in `Concise` (Claude Code ≥ 2.1.260); never add a custom style with that name.
 - **Editor**: VS Code only. No other-IDE references or IDE-routing shell wrappers. **Claude wrapper**: both rc files define the function `claude() { command claude --verbose --allow-dangerously-skip-permissions "$@"; }` (a function, not an alias, so it works with alias expansion off and inside other functions) and nothing else manages it.
 
 ## Development workflow
