@@ -56,7 +56,8 @@ while IFS= read -r -d '' script; do
         echo "    linting ${script#"$repo"/}"
         bash -n "$out" || { echo "SYNTAX FAIL: $script"; fail=1; }
         shellcheck -S warning "$out" || { echo "SHELLCHECK FAIL: $script"; fail=1; }
-        if [ "$role" = personal ] && grep -qiE 'gitlab|bitwarden|fortressinfosec|dispatch-|coderabbit|promptctl' "$out"; then
+        # Comment lines are not behaviour; only executable lines count as a leak.
+        if [ "$role" = personal ] && grep -vE '^[[:space:]]*#' "$out" | grep -qiE 'gitlab|bitwarden|fortressinfosec|dispatch-|coderabbit|promptctl'; then
             echo "LEAK: work-only content in rendered script $script (personal)"; fail=1
         fi
     fi
