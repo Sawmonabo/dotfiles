@@ -9,16 +9,13 @@ setopt HIST_IGNORE_SPACE
 setopt APPEND_HISTORY
 setopt SHARE_HISTORY
 
-# --- Completion ---
-autoload -Uz compinit && compinit
-
 # --- PATH ---
 # Homebrew (Apple Silicon)
 if [ -d "/opt/homebrew/bin" ]; then
     eval "$(/opt/homebrew/bin/brew shellenv)"
 fi
 # Homebrew (Intel)
-if [ -d "/usr/local/bin/brew" ]; then
+if [ -x "/usr/local/bin/brew" ]; then
     eval "$(/usr/local/bin/brew shellenv)"
 fi
 
@@ -39,18 +36,25 @@ export NVM_DIR="$HOME/.nvm"
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
 
-# uv (Python package and project manager)
-if command -v uv &> /dev/null; then
-    eval "$(uv generate-shell-completion zsh)"
-fi
-
 # PostgreSQL: keg-only, so it needs a PATH entry. The version-free opt link is
 # the alias Homebrew maintains for the "postgresql" formula in packages.toml, so
 # this follows whichever major version that alias currently installs.
 export PATH="/opt/homebrew/opt/postgresql/bin:$PATH"
 
-# --- Docker CLI completions ---
-fpath=("$HOME/.docker/completions" $fpath)
+# --- Completion ---
+# Every fpath entry must be in place before compinit runs, or its completions
+# are never registered: brew shellenv (above) prepends Homebrew's
+# site-functions, and Docker Desktop writes the docker CLI completion to
+# ~/.docker/completions. compinit used to run at the top of this file, which
+# left docker, gh, brew and chezmoi without completion in a fresh terminal.
+fpath=(~/.docker/completions $fpath)
+autoload -Uz compinit && compinit
+
+# uv (Python package and project manager): defines its completion at runtime,
+# so it has to come after compinit.
+if command -v uv &> /dev/null; then
+    eval "$(uv generate-shell-completion zsh)"
+fi
 
 # --- Aliases ---
 alias ls='ls -lhaG'
