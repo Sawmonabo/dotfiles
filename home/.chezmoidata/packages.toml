@@ -183,7 +183,6 @@ brew = [
   "jandedobbeleer/oh-my-posh/oh-my-posh",
   "jq",
   "lefthook",
-  "pnpm",
   "postgresql",
   "ripgrep",
   "shellcheck",

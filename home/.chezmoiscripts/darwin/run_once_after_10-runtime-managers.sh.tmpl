@@ -5,6 +5,13 @@
 # checked here. Mirrors linux/10-runtime-managers.
 set -euo pipefail
 
+# Homebrew is not on PATH in the non-login shell chezmoi runs scripts in.
+if [ -x /opt/homebrew/bin/brew ]; then
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+elif [ -x /usr/local/bin/brew ]; then
+    eval "$(/usr/local/bin/brew shellenv)"
+fi
+
 echo "==> Runtime managers ({{ .versions_mode }} mode)..."
 
 # --- nvm ---
