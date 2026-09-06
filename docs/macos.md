@@ -49,28 +49,55 @@ chezmoi verify && echo "All good"
 
 ## What the Bootstrap Installs
 
-`run_once_before_00-packages` installs Homebrew if it is missing (detecting the
-Apple Silicon `/opt/homebrew` vs Intel `/usr/local` prefix), writes a temporary
-Brewfile from the package data, and runs `brew bundle install --no-upgrade` on
-it — missing formulae and casks are installed, anything already present is left
-at the version it has. It then clones TPM into `~/.tmux/plugins/tpm`, installs
-bitwarden-cli on work machines (`machine_role` work or both), and installs every
-VS Code extension that `code --list-extensions` does not already report.
+The install is split in two on purpose. The **before-phase** runs before a
+single file is deployed, so anything that fails there blocks the whole apply; it
+is therefore kept to what the rc files and the later scripts actually need, and
+it is strict. The **after-phase** runs once the files are in place, so its
+failures are reports rather than blocks, and the parts that routinely collide
+with software you installed by hand live there and are best-effort.
 
-See [packages.toml](../home/.chezmoidata/packages.toml) under `[packages.darwin]`
-for the exact formula and cask set; runtime managers and global tools follow the
-same `versions.toml` pins as Linux.
+`run_once_before_00-packages` (strict) installs Homebrew if it is missing
+(detecting the Apple Silicon `/opt/homebrew` vs Intel `/usr/local` prefix, and
+downloading the installer to a file before running it), writes a temporary
+Brewfile of the `[packages.darwin].brew` formulae — plus `bitwarden-cli` on work
+machines (`machine_role` work or both) — and runs `brew bundle install
+--no-upgrade` on it: missing formulae are installed, anything already present is
+left at the version it has. It then creates `~/.config/oh-my-posh` and clones
+TPM into `~/.tmux/plugins/tpm`. The TPM clone is best-effort, because
+`shared/40-tmux-plugins` already skips gracefully when TPM is absent.
 
-Three scripts run after the files are deployed:
+Four scripts run after the files are deployed:
 
 | Script | What it does |
 |--------|--------------|
 | `run_once_after_10-runtime-managers` | nvm and rustup via their upstream installers; uv, bun and Go come from Homebrew and are only verified here |
 | `run_onchange_after_20-runtimes` | Node versions + default alias (nvm), Pythons (uv), Rust toolchain (rustup) |
 | `run_onchange_after_30-global-tools` | codex, claude, corepack pnpm/yarn, uv tools, cargo tools, go tools; checks that the docker CLI is on PATH |
+| `run_onchange_after_50-apps-and-extensions` | The `[packages.darwin].cask` GUI apps and the `vscode_extensions` set, in one `brew bundle install --no-upgrade` using its native `cask` and `vscode` entries. Best-effort: it warns and re-runs whenever `packages.toml` changes. `jasonn-porch.gitlab-mr` is added here only on work machines |
 
-Each of the three puts Homebrew on PATH itself, because chezmoi runs scripts in
-a non-login shell that has not sourced `.zshrc`.
+(`run_onchange_after_45-terminal-font` also runs, but it only prints Terminal.app
+font instructions.)
+
+Each of the runtime scripts puts Homebrew on PATH itself: a fresh Mac has no
+Homebrew on PATH until `.zshrc` deploys, so the scripts source `brew shellenv`
+rather than assume it.
+
+See [packages.toml](../home/.chezmoidata/packages.toml) for the exact formula,
+cask and extension set. Every list there is role-neutral; the work-only
+`bitwarden-cli` and `jasonn-porch.gitlab-mr` entries are gated in the scripts.
+
+### Which versions macOS actually pins
+
+`versions.toml` governs Node (nvm), Python (uv), Rust (rustup) and the global
+tools on macOS. It does **not** govern `uv`, `bun` or `go`: those come from
+Homebrew at whatever version it ships, and `10-runtime-managers` only verifies
+they are present. The `versions.go`, `versions.uv` and `versions.bun` pins apply
+on Linux only.
+
+A fresh Mac also ends up with chezmoi twice: once from `get.chezmoi.io` into
+`~/.local/bin` (the install command above) and once as the `chezmoi` formula.
+`~/.local/bin` comes first in the `.zshrc` PATH, so that copy wins. Either is
+fine; there is nothing to clean up.
 
 ## Shell: zsh
 
@@ -231,13 +258,37 @@ which oh-my-posh
 brew --prefix
 ```
 
-### A cask refuses to install over an app you installed by hand
+### A cask or extension did not install
 
-`brew bundle` fails with `It seems there is already an App at /Applications/...`
-when a cask's app was installed outside Homebrew. Adopt it once, then re-run:
+Formulae are strict: if `run_once_before_00-packages` fails, the apply stops and
+you fix the formula, then re-run `chezmoi apply`.
+
+Casks and VS Code extensions are not. `run_onchange_after_50-apps-and-extensions`
+runs after the files are deployed and prints:
+
+```
+    WARNING: one or more casks or extensions did not install (see above).
+    An app already in /Applications at a different version cannot be adopted.
+```
+
+The usual cause is an app you installed by hand: `brew bundle` reports
+`It seems there is already an App at /Applications/...`. Homebrew can adopt such
+an app in place only when its version matches the cask exactly; otherwise you
+have to replace it. **Quit the app first** — `--force` will overwrite a running
+app, and Docker Desktop in particular should be quit before you do this.
 
 ```bash
-brew install --cask --adopt <name>
+brew install --cask --adopt <name>      # same version: adopt in place
+brew install --cask --force <name>      # replace with the cask version
+```
+
+That is the install, so there is nothing to re-apply afterwards. To make the
+script itself run again — after fixing something it warned about, say — either
+edit `home/.chezmoidata/packages.toml` (its hash is baked into the script, so
+any change re-runs it) or clear the recorded state:
+
+```bash
+chezmoi state delete-bucket --bucket=entryState
 chezmoi apply -v
 ```
 

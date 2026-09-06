@@ -65,16 +65,26 @@ chezmoi apply -v
 
 ### macOS
 
-Homebrew first (installed if missing), then every formula and cask listed under
-`[packages.darwin]` in [`home/.chezmoidata/packages.toml`](home/.chezmoidata/packages.toml)
-— [bat](https://github.com/sharkdp/bat), [fd](https://github.com/sharkdp/fd),
-[oh-my-posh](https://ohmyposh.dev/) (tap), [tmux](https://github.com/tmux/tmux),
-[gh](https://cli.github.com/), the [JetBrains Mono Nerd Font](https://www.nerdfonts.com/)
-cask and the rest of the set. The install runs as `brew bundle install --no-upgrade`
-from a temporary Brewfile, so it adds what is missing and never upgrades what is
-already there. After the packages: [TPM](https://github.com/tmux-plugins/tpm) into
-`~/.tmux/plugins/tpm`, the VS Code extensions from `packages.vscode_extensions`, and
-[bitwarden-cli](https://bitwarden.com/help/cli/) on work machines only.
+Two phases, both driven by [`home/.chezmoidata/packages.toml`](home/.chezmoidata/packages.toml).
+
+**Before the files deploy** (`run_once_before_00-packages`, strict — a failure
+here stops the apply): Homebrew first, installed if missing, then the
+`[packages.darwin].brew` command-line formulae —
+[bat](https://github.com/sharkdp/bat), [fd](https://github.com/sharkdp/fd),
+[oh-my-posh](https://ohmyposh.dev/), [tmux](https://github.com/tmux/tmux),
+[gh](https://cli.github.com/) and the rest — plus
+[bitwarden-cli](https://bitwarden.com/help/cli/) on work machines only. Then
+`~/.config/oh-my-posh`, and [TPM](https://github.com/tmux-plugins/tpm) into
+`~/.tmux/plugins/tpm` (best-effort).
+
+**After the files deploy** (`run_onchange_after_50-apps-and-extensions`,
+best-effort — it warns and carries on): the `[packages.darwin].cask` GUI apps,
+including the [JetBrains Mono Nerd Font](https://www.nerdfonts.com/), and the VS
+Code extensions from `packages.vscode_extensions`. It re-runs whenever
+`packages.toml` changes, so a cask that failed can be retried.
+
+Both phases run as `brew bundle install --no-upgrade` from a temporary Brewfile,
+so they add what is missing and never upgrade what is already there.
 
 ### Linux / WSL
 
@@ -88,20 +98,23 @@ already there. After the packages: [TPM](https://github.com/tmux-plugins/tpm) in
 
 **Runtime managers** (`run_once_after_10`): nvm, uv, rustup, bun, Go — versions
 from `home/.chezmoidata/versions.toml`. macOS installs only nvm and rustup here;
-uv, bun and Go arrive with the Homebrew packages and are just verified.
+uv, bun and Go arrive with the Homebrew packages at whatever version Homebrew
+ships and are just verified, so the `uv`/`bun`/`go` pins apply on Linux only.
 
 **Runtimes** (`run_onchange_after_20`): pinned Node versions + default alias,
 uv-managed Pythons, Rust toolchain. Re-runs automatically when the pins change.
 
 **Global tools** (`run_onchange_after_30`): codex, claude,
 corepack pnpm/yarn, uv tools, cargo tools, go tools, and podman (via apt on
-Linux; macOS checks for the Homebrew docker CLI instead).
+Linux; macOS checks for the docker CLI that the docker-desktop cask supplies).
 
 The `versions_mode` prompt at `chezmoi init` chooses **pinned** (exact recorded
 versions) or **latest** (newest in each recorded line). Re-run `chezmoi init`
-to change your answer. `home/.chezmoidata/packages.toml` drives the macOS Homebrew
-install and holds the canonical VS Code extension list; its apt list is still a
-manual reference pending a scripted Linux install.
+to change your answer. `home/.chezmoidata/packages.toml` drives the macOS
+Homebrew install and holds the canonical VS Code extension list; its apt list is
+still a manual reference pending a scripted Linux install. Every list in it is
+role-neutral — the work-only `bitwarden-cli` formula and `jasonn-porch.gitlab-mr`
+extension are gated in the scripts, not in the data.
 
 ### Windows (from WSL)
 
