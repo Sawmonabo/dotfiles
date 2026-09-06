@@ -66,7 +66,7 @@ left at the version it has. It then creates `~/.config/oh-my-posh` and clones
 TPM into `~/.tmux/plugins/tpm`. The TPM clone is best-effort, because
 `shared/40-tmux-plugins` already skips gracefully when TPM is absent.
 
-Four scripts run after the files are deployed:
+Five scripts run after the files are deployed (the four darwin ones below, then `shared/40-tmux-plugins`):
 
 | Script | What it does |
 |--------|--------------|
@@ -75,7 +75,7 @@ Four scripts run after the files are deployed:
 | `run_onchange_after_30-global-tools` | codex, claude, corepack pnpm/yarn, uv tools, cargo tools, go tools; checks that the docker CLI is on PATH |
 | `run_onchange_after_50-apps-and-extensions` | The `[packages.darwin].cask` GUI apps and the `vscode_extensions` set, in one `brew bundle install --no-upgrade` using its native `cask` and `vscode` entries. Best-effort: it warns and re-runs whenever `packages.toml` changes. `jasonn-porch.gitlab-mr` is added here only on work machines |
 
-(`run_onchange_after_45-terminal-font` also runs, but it only prints Terminal.app
+(`run_onchange_after_55-terminal-font` also runs, but it only prints Terminal.app
 font instructions.)
 
 Each of the runtime scripts puts Homebrew on PATH itself: a fresh Mac has no

@@ -22,10 +22,11 @@ echo "==> macOS bootstrap starting..."
 if [ ! -x /opt/homebrew/bin/brew ] && [ ! -x /usr/local/bin/brew ]; then
     echo "==> Installing Homebrew..."
     installer="$(mktemp)"
+    trap 'rm -f "$installer"' EXIT
     curl -fsSL --retry 5 --retry-all-errors https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh -o "$installer"
     [ -s "$installer" ] || { echo "Homebrew installer download failed" >&2; exit 1; }
-    /bin/bash "$installer"
-    rm -f "$installer"
+    # NONINTERACTIVE: no RETURN prompt; sudo may still ask for a password.
+    NONINTERACTIVE=1 /bin/bash "$installer"
 fi
 if [ -x /opt/homebrew/bin/brew ]; then
     eval "$(/opt/homebrew/bin/brew shellenv)"

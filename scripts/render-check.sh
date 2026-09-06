@@ -56,6 +56,9 @@ while IFS= read -r -d '' script; do
         echo "    linting ${script#"$repo"/}"
         bash -n "$out" || { echo "SYNTAX FAIL: $script"; fail=1; }
         shellcheck -S warning "$out" || { echo "SHELLCHECK FAIL: $script"; fail=1; }
+        if [ "$role" = personal ] && grep -qiE 'gitlab|bitwarden|fortressinfosec|dispatch-|coderabbit|promptctl' "$out"; then
+            echo "LEAK: work-only content in rendered script $script (personal)"; fail=1
+        fi
     fi
 done < <(find "$repo/home/.chezmoiscripts" -name '*.sh.tmpl' -print0 \
     ; [ "$extra" = wsl ] && printf '%s\0' "$repo/home/dot_local/bin/executable_win-browser.tmpl")

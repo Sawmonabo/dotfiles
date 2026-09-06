@@ -19,16 +19,18 @@ trap 'rm -f "$bundle"' EXIT
 {{- range .packages.darwin.cask }}
     echo 'cask "{{ . }}"'
 {{- end }}
-    if command -v code >/dev/null 2>&1; then
+    # No `command -v code` gate: brew bundle installs the cask batch (which
+    # includes visual-studio-code) before the vscode batch, and resolves
+    # `code` itself at that point. If VS Code is truly absent the vscode
+    # batch fails into the best-effort warning below.
 {{- range .packages.vscode_extensions }}
-        echo 'vscode "{{ . }}"'
+    echo 'vscode "{{ . }}"'
 {{- end }}
 {{- if .has_work }}
-        # GitLab is work-only, so this one is gated here rather than in the
-        # role-neutral vscode_extensions list.
-        echo 'vscode "jasonn-porch.gitlab-mr"'
+    # GitLab is work-only, so this one is gated here rather than in the
+    # role-neutral vscode_extensions list.
+    echo 'vscode "jasonn-porch.gitlab-mr"'
 {{- end }}
-    fi
 } > "$bundle"
 
 echo "==> Installing casks and VS Code extensions from packages.toml..."
