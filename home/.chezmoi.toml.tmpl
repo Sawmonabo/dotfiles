@@ -21,7 +21,7 @@ Answers persist in the local chezmoi.toml, never in the repo.
 {{-     end -}}
 {{-   end -}}
 {{- end -}}
-sourceDir = "{{ .chezmoi.homeDir }}/dev/dotfiles"
+sourceDir = {{ .chezmoi.sourceDir | quote }}
 
 [data]
     machine_role = "{{ $role }}"
