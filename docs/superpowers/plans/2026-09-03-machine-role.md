@@ -450,7 +450,7 @@ This is the largest change. The Codex config becomes a template gated on `has_pe
 **Interfaces:**
 - Consumes: `.has_work`, `.has_personal`, `.machine_role`, `.email`, `.work_email`, `.jira_api_token`, `.gitlab_token`, `.versions.node_default` (from `home/.chezmoidata/versions.toml`), `.chezmoi.homeDir`.
 
-**Decision recorded:** the Mac currently runs Codex with `sandbox_mode = "danger-full-access"` and `approval_policy = "never"`. The repo value (`workspace-write` / `on-failure`) is kept as the managed default because it is the safer baseline. The Mac's `[agents]` block and `multi_agent = true` are adopted into the shared config since they are role-neutral.
+**Decision recorded (revised 2026-09-06):** Codex runs with `sandbox_mode = "danger-full-access"` and `approval_policy = "never"` on every machine role, by user decision, so full permission never has to be set by hand. The `[sandbox_workspace_write]` block is therefore omitted. The Mac's `[agents]` block and `multi_agent = true` are adopted into the shared config since they are role-neutral.
 
 - [ ] **Step 1: Replace `private_config.toml.tmpl`**
 
@@ -463,8 +463,8 @@ This is the largest change. The Codex config becomes a template gated on `has_pe
 model = "gpt-5.6-sol"
 model_reasoning_effort = "xhigh"
 plan_mode_reasoning_effort = "max"
-sandbox_mode = "workspace-write"
-approval_policy = "on-failure"
+sandbox_mode = "danger-full-access"
+approval_policy = "never"
 approvals_reviewer = "user"
 web_search = "live"
 project_doc_max_bytes = 65536
@@ -1024,7 +1024,8 @@ chezmoi diff --no-pager
 ```
 
 Expected differences on this Mac, and nothing else:
-- `.codex/config.toml`: trust collapses to `[projects."/Users/sawmonabo/dev"]`, sandbox becomes `workspace-write` / `on-failure`, no dispatch or Fortress content, no `/home/sabossedgh` anywhere.
+- `.codex/config.toml`: trust collapses to `[projects."/Users/sawmonabo/dev"]`, sandbox stays `danger-full-access` / `never`, `deep-research@sidekick-skills` plugin kept, no dispatch or Fortress content, no `/home/sabossedgh` anywhere.
+- `.claude/settings.json`: global plugins become exactly superpowers, deep-research, memory-audit, claude-md-management, skill-creator, code-review, code-simplifier, codex, context7, post-mortem (measured from 90 days of transcripts on 2026-09-06); language servers and domain packs are per-repo.
 - `.codex/AGENTS.md`: personal instructions without the path-scoped policy.
 - `.codex/hooks.json`: not created.
 - `.gitconfig`: `core.editor` becomes `code --wait`, no includeIf lines, gh credential helper added. `~/.gitconfig-work` is left untouched but unused (delete it by hand if desired).
@@ -1480,7 +1481,7 @@ git switch main && git merge --ff-only feat/darwin-packages && git push
 **Known assumptions.**
 - Codex trust for a parent directory applies to repositories beneath it. Task 10 Step 5 verifies this and records the fallback.
 - The Codex `trusted_hash` for the prompt hook is only guaranteed valid on the original work Linux machine where the rendered path is unchanged; other work machines may be asked once to trust the hook.
-- The Mac's Codex overrides (`danger-full-access`, `approval_policy = "never"`) are intentionally not carried into the managed config. If they are wanted, add a `codex_full_access` boolean prompt rather than editing `~/.codex/config.toml` by hand, or chezmoi will revert it on the next apply.
+- Codex full access (`danger-full-access`, `approval_policy = "never"`) is the managed default on every role as of 2026-09-06.
 - `chezmoi init` with no repository argument only regenerates the config file; it never applies.
 - `--promptChoice` / `--promptString` / `--promptInt` are keyed on prompt text and split on commas. Verified against chezmoi v2.70.3 on 2026-09-03: keying on the data field name silently falls through to a TTY prompt. Any change to a prompt string in `.chezmoi.toml.tmpl` must be mirrored in `scripts/scratch-init.sh`.
 
