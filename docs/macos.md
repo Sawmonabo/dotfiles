@@ -49,17 +49,28 @@ chezmoi verify && echo "All good"
 
 ## What the Bootstrap Installs
 
-| Tool | Method | Notes |
-|------|--------|-------|
-| Homebrew | Official install script | Detects ARM vs Intel path |
-| bat | `brew install bat` | cat replacement with syntax highlighting |
-| fd | `brew install fd` | find replacement |
-| oh-my-posh | `brew install jandedobbeleer/oh-my-posh/oh-my-posh` | Prompt theme engine |
-| JetBrains Mono Nerd Font | `brew install --cask font-jetbrains-mono-nerd-font` | Required for prompt icons |
-| tmux | `brew install tmux` | Terminal multiplexer |
-| TPM | `git clone` into `~/.tmux/plugins/tpm` | tmux plugin manager |
-| gh (GitHub CLI) | `brew install gh` | GitHub operations from terminal |
-| bitwarden-cli | `brew install bitwarden-cli` | Work machines only (`machine_role` work or both) |
+`run_once_before_00-packages` installs Homebrew if it is missing (detecting the
+Apple Silicon `/opt/homebrew` vs Intel `/usr/local` prefix), writes a temporary
+Brewfile from the package data, and runs `brew bundle install --no-upgrade` on
+it — missing formulae and casks are installed, anything already present is left
+at the version it has. It then clones TPM into `~/.tmux/plugins/tpm`, installs
+bitwarden-cli on work machines (`machine_role` work or both), and installs every
+VS Code extension that `code --list-extensions` does not already report.
+
+See [packages.toml](../home/.chezmoidata/packages.toml) under `[packages.darwin]`
+for the exact formula and cask set; runtime managers and global tools follow the
+same `versions.toml` pins as Linux.
+
+Three scripts run after the files are deployed:
+
+| Script | What it does |
+|--------|--------------|
+| `run_once_after_10-runtime-managers` | nvm and rustup via their upstream installers; uv, bun and Go come from Homebrew and are only verified here |
+| `run_onchange_after_20-runtimes` | Node versions + default alias (nvm), Pythons (uv), Rust toolchain (rustup) |
+| `run_onchange_after_30-global-tools` | codex, claude, corepack pnpm/yarn, uv tools, cargo tools, go tools; checks that the docker CLI is on PATH |
+
+Each of the three puts Homebrew on PATH itself, because chezmoi runs scripts in
+a non-login shell that has not sourced `.zshrc`.
 
 ## Shell: zsh
 
@@ -218,6 +229,16 @@ Ensure Homebrew's bin is in PATH:
 ```bash
 which oh-my-posh
 brew --prefix
+```
+
+### A cask refuses to install over an app you installed by hand
+
+`brew bundle` fails with `It seems there is already an App at /Applications/...`
+when a cask's app was installed outside Homebrew. Adopt it once, then re-run:
+
+```bash
+brew install --cask --adopt <name>
+chezmoi apply -v
 ```
 
 ### chezmoi not found

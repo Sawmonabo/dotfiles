@@ -65,13 +65,16 @@ chezmoi apply -v
 
 ### macOS
 
-- [bat](https://github.com/sharkdp/bat) (via Homebrew)
-- [fd](https://github.com/sharkdp/fd) (via Homebrew)
-- [oh-my-posh](https://ohmyposh.dev/) (via Homebrew tap)
-- [JetBrains Mono Nerd Font](https://www.nerdfonts.com/) (via Homebrew cask)
-- [tmux](https://github.com/tmux/tmux) and [TPM](https://github.com/tmux-plugins/tpm)
-- [gh](https://cli.github.com/) (via Homebrew)
-- [bitwarden-cli](https://bitwarden.com/help/cli/) (via Homebrew, work machines only)
+Homebrew first (installed if missing), then every formula and cask listed under
+`[packages.darwin]` in [`home/.chezmoidata/packages.toml`](home/.chezmoidata/packages.toml)
+— [bat](https://github.com/sharkdp/bat), [fd](https://github.com/sharkdp/fd),
+[oh-my-posh](https://ohmyposh.dev/) (tap), [tmux](https://github.com/tmux/tmux),
+[gh](https://cli.github.com/), the [JetBrains Mono Nerd Font](https://www.nerdfonts.com/)
+cask and the rest of the set. The install runs as `brew bundle install --no-upgrade`
+from a temporary Brewfile, so it adds what is missing and never upgrades what is
+already there. After the packages: [TPM](https://github.com/tmux-plugins/tpm) into
+`~/.tmux/plugins/tpm`, the VS Code extensions from `packages.vscode_extensions`, and
+[bitwarden-cli](https://bitwarden.com/help/cli/) on work machines only.
 
 ### Linux / WSL
 
@@ -84,19 +87,21 @@ chezmoi apply -v
 - bitwarden-cli (upstream zip in `~/.local/bin`, work machines only)
 
 **Runtime managers** (`run_once_after_10`): nvm, uv, rustup, bun, Go — versions
-from `home/.chezmoidata/versions.toml`.
+from `home/.chezmoidata/versions.toml`. macOS installs only nvm and rustup here;
+uv, bun and Go arrive with the Homebrew packages and are just verified.
 
 **Runtimes** (`run_onchange_after_20`): pinned Node versions + default alias,
 uv-managed Pythons, Rust toolchain. Re-runs automatically when the pins change.
 
 **Global tools** (`run_onchange_after_30`): codex, claude,
-corepack pnpm/yarn, uv tools, cargo tools, go tools, and podman (via apt).
+corepack pnpm/yarn, uv tools, cargo tools, go tools, and podman (via apt on
+Linux; macOS checks for the Homebrew docker CLI instead).
 
 The `versions_mode` prompt at `chezmoi init` chooses **pinned** (exact recorded
 versions) or **latest** (newest in each recorded line). Re-run `chezmoi init`
-to change your answer. Reference lists that stay manual: `home/.chezmoidata/packages.toml` holds the
-recorded apt package names (need sudo + per-release availability review) and
-VS Code extension IDs (need the Windows `code` command).
+to change your answer. `home/.chezmoidata/packages.toml` drives the macOS Homebrew
+install and holds the canonical VS Code extension list; its apt list is still a
+manual reference pending a scripted Linux install.
 
 ### Windows (from WSL)
 
@@ -216,7 +221,7 @@ chezmoi apply
     ├── .chezmoiignore                                       # OS-conditional ignores
     ├── .chezmoidata/
     │   ├── versions.toml                                    # Pinned tool/runtime versions
-    │   └── packages.toml                                    # apt package names + VS Code extension IDs
+    │   └── packages.toml                                    # brew/cask lists (darwin), apt reference, VS Code extension IDs
     ├── .chezmoitemplates/
     │   ├── nvm-load.sh                                      # Shared nvm guard+source fragment
     │   └── bw-wrapper.sh                                    # Bitwarden unlock/lock wrapper (work machines only)
