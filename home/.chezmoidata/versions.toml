@@ -25,9 +25,7 @@ yarn = "1.22.22"
 
 # uv tool install <name>==<version> (sidekick tools are installed manually)
 [uv_tools]
-"cli-agent-orchestrator" = "2.3.0"
 "pyclean" = "3.4.0"
-"specify-cli" = "0.0.22"
 
 # cargo install <crate> --version <ver>. bat is NOT listed here: the Linux
 # bootstrap script installs it from apt (cargo only as a fallback), so listing
