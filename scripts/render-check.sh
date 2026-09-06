@@ -17,13 +17,17 @@ extra=${3:-}
 if [ -n "$extra" ] && [ "$extra" != wsl ]; then echo "$usage" >&2; exit 2; fi
 repo=$(cd "$(dirname "$0")/.." && pwd)
 tmp=$(mktemp -d)
-trap 'rm -rf "$tmp" "${config:-}"' EXIT
+# scratch-init.sh puts its config in a directory of its own, so remove the
+# directory rather than leaking one mktemp -d per run.
+config_dir=
+trap 'rm -rf "$tmp" "${config_dir:-}"' EXIT
 dest="$tmp/home"
 mkdir -p "$dest"
 fail=0
 
 echo "==> [$role/$mode] init: every prompt must be answerable non-interactively"
 config=$("$repo/scripts/scratch-init.sh" "$role" "$mode")
+config_dir=$(dirname "$config")
 if [ "$extra" = wsl ]; then
     # The WSL sizing prompts only fire on a real WSL host, so answer them here.
     sed -i.bak 's/^\( *\)is_wsl = false$/\1is_wsl = true/' "$config" && rm -f "$config.bak"
