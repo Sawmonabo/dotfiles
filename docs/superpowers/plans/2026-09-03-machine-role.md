@@ -1011,11 +1011,12 @@ chezmoi diff --no-pager
 ```
 
 Expected differences on this Mac, and nothing else:
-- `.codex/config.toml`: trust collapses to `[projects."/Users/sawmonabo/dev"]`, sandbox stays `danger-full-access` / `never`, `deep-research@sidekick-skills` plugin kept, `[marketplaces.sidekick-skills]` keeps its static `source_type`/`source`/`ref` keys while Codex-owned `last_updated`/`last_revision` are dropped (Codex re-adds them on its next refresh; expect that two-line diff afterwards), no dispatch or Fortress content, no `/home/sabossedgh` anywhere.
+- `.codex/config.toml`: trust collapses to `[projects."/Users/sawmonabo/dev"]`, sandbox stays `danger-full-access` / `never`, `deep-research@sidekick-skills` plugin kept, `[marketplaces.sidekick-skills]` keeps its static `source_type`/`source`/`ref` keys and, because the file is now a `modify_` template, its Codex-owned `last_updated`/`last_revision` are carried over from the existing file (as are `notice.model_migrations`, `tui.model_availability_nux`, and `hooks`), no dispatch or Fortress content, no `/home/sabossedgh` anywhere.
 - `.claude/settings.json`: global plugins become exactly superpowers, deep-research, memory-audit, claude-md-management, skill-creator, code-review, code-simplifier, codex, context7, post-mortem (measured from 90 days of transcripts on 2026-09-06); language servers and domain packs are per-repo.
 - `.codex/AGENTS.md`: personal instructions without the path-scoped policy.
 - `.codex/hooks.json`: not created.
-- `.gitconfig`: `core.editor` becomes `code --wait`, no includeIf lines, gh credential helper added. `~/.gitconfig-work` is left untouched but unused (delete it by hand if desired).
+- `.gitconfig`: `core.editor` becomes `code --wait`, no includeIf lines, gh credential helper added.
+- `~/.gitconfig-work` (unmanaged, contains only the work email) is deleted by `.chezmoiremove` because this is a personal machine.
 - `.zshrc`: `EDITOR` becomes `code --wait`, the `code()` Cursor launcher and the agent-brain block (with its duplicate `alias claude=`) are removed, the `claude()` function is unchanged and present exactly once, Bitwarden wrapper added, `~/.zshrc.local` sourced.
 - `.claude/scripts`: the symlink into `~/dev/ai-sidekicks` is deleted and replaced by a real directory containing `statusline.py`. `.claude/settings.json` switches `statusLine.command` to `python3 ~/.claude/scripts/statusline.py`.
 - `.claude/CLAUDE.md`, `.local/bin/claude-costs` as in the original audit.

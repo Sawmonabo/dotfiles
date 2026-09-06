@@ -1,1 +1,15 @@
+{{- /* Same hasKey fallback as .chezmoiignore: a chezmoi.toml generated before
+       the role keys existed must not abort here either. Missing keys mean the
+       safest shape, personal, which removes every work-only file. */ -}}
+{{- $hasWork := false }}{{- if hasKey . "has_work" }}{{ $hasWork = .has_work }}{{ end }}
+{{- $role := "personal" }}{{- if hasKey . "machine_role" }}{{ $role = .machine_role }}{{ end -}}
+
 .claude/scripts/statusline.sh
+{{- /* Role downgrade cleanup: files a previous, wider role deployed must go. */}}
+{{- if not $hasWork }}
+.codex/hooks.json
+{{- end }}
+{{- if ne $role "both" }}
+.gitconfig-personal
+.gitconfig-work
+{{- end }}
