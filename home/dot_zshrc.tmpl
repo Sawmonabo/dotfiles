@@ -47,8 +47,16 @@ export PATH="/opt/homebrew/opt/postgresql/bin:$PATH"
 # site-functions, and Docker Desktop writes the docker CLI completion to
 # ~/.docker/completions. compinit used to run at the top of this file, which
 # left docker, gh, brew and chezmoi without completion in a fresh terminal.
-fpath=(~/.docker/completions $fpath)
-autoload -Uz compinit && compinit
+# The five lines below are byte-for-byte what Docker Desktop's "Configure shell
+# completions -> Automatically" appends to .zshrc. Keeping them identical here
+# means Docker Desktop recognises the setup and never appends a second copy,
+# while chezmoi stays the owner of the file. The guarded compinit runs once in
+# a fresh shell and registers everything in fpath, Homebrew's included.
+# The following lines have been added by Docker Desktop to enable Docker CLI completions.
+fpath=({{ .chezmoi.homeDir }}/.docker/completions $fpath)
+autoload -Uz compinit
+(( ${+_comps[docker]} )) || compinit
+# End of Docker CLI completions
 
 # uv (Python package and project manager): defines its completion at runtime,
 # so it has to come after compinit.
